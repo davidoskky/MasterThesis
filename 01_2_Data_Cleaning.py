@@ -7,7 +7,10 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-BASE_PATH = Path(r"C:/Users/diana/Documents/Master-Policy Economics/Thesis")
+from schema_loader import load_ecv_schema
+
+BASE_PATH = Path(r".").resolve()
+INPUT_DIR = BASE_PATH / "input_data"
 DATA_PREFIX = "datos_"
 YEARS = list(range(2017, 2025))
 
