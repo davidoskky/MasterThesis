@@ -1,0 +1,58 @@
+description: Monthly guaranteed amount by household size (EUR) — Madrid
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Madrid
+  program: Renta Mínima de Inserción
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 400.0
+      '2018-01-01':
+        value: 400.0
+      '2019-01-01':
+        value: 400.0
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 512.67
+      '2018-01-01':
+        value: 512.67
+      '2019-01-01':
+        value: 512.67
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 587.78
+      '2018-01-01':
+        value: 587.78
+      '2019-01-01':
+        value: 587.78

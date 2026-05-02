@@ -1,0 +1,16 @@
+description: Multiplier applied to the scheduled guaranteed amount (1.0 if not specified)
+  — Aragon
+metadata:
+  source: policy_db/rmi_baseline_rules.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 baseline operational rules carried forward to 2018-2019
+  region: Aragon
+  program: Ingreso Aragonés de Inserción
+values:
+  '2017-01-01':
+    value: 1.0
+  '2018-01-01':
+    value: 1.0
+  '2019-01-01':
+    value: 1.0

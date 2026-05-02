@@ -1,0 +1,74 @@
+description: Monthly guaranteed amount by household size (EUR) — La Rioja
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: La Rioja
+  program: Renta de Ciudadanía
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 430.27
+      '2018-01-01':
+        value: 430.27
+      '2019-01-01':
+        value: 430.27
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 537.84
+      '2018-01-01':
+        value: 537.84
+      '2019-01-01':
+        value: 537.84
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 618.52
+      '2018-01-01':
+        value: 618.52
+      '2019-01-01':
+        value: 618.52
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 672.3
+      '2018-01-01':
+        value: 672.3
+      '2019-01-01':
+        value: 672.3

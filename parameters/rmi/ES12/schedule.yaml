@@ -1,0 +1,106 @@
+description: Monthly guaranteed amount by household size (EUR) — Asturias
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Asturias
+  program: Salario Social Básico
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 442.96
+      '2018-01-01':
+        value: 442.96
+      '2019-01-01':
+        value: 442.96
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 540.41
+      '2018-01-01':
+        value: 540.41
+      '2019-01-01':
+        value: 540.41
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 611.28
+      '2018-01-01':
+        value: 611.28
+      '2019-01-01':
+        value: 611.28
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 682.14
+      '2018-01-01':
+        value: 682.14
+      '2019-01-01':
+        value: 682.14
+- threshold:
+    values:
+      '2017-01-01':
+        value: 5
+      '2018-01-01':
+        value: 5
+      '2019-01-01':
+        value: 5
+  amount:
+    values:
+      '2017-01-01':
+        value: 713.16
+      '2018-01-01':
+        value: 713.16
+      '2019-01-01':
+        value: 713.16
+- threshold:
+    values:
+      '2017-01-01':
+        value: 6
+      '2018-01-01':
+        value: 6
+      '2019-01-01':
+        value: 6
+  amount:
+    values:
+      '2017-01-01':
+        value: 730.88
+      '2018-01-01':
+        value: 730.88
+      '2019-01-01':
+        value: 730.88

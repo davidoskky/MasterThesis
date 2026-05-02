@@ -1,0 +1,16 @@
+description: Overall scheme structure type (classic_rmi / guaranteed_income / coexisting_rmi_resoga
+  / …) — La Rioja
+metadata:
+  source: policy_db/rmi_baseline_rules.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 baseline operational rules carried forward to 2018-2019
+  region: La Rioja
+  program: Renta de Ciudadanía
+values:
+  '2017-01-01':
+    value: mixed_schemes
+  '2018-01-01':
+    value: mixed_schemes
+  '2019-01-01':
+    value: mixed_schemes

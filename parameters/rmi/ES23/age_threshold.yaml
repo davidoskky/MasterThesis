@@ -1,0 +1,16 @@
+description: Minimum age for the responsible-person claimant proxy — La Rioja
+metadata:
+  source: policy_db/rmi_baseline_rules.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 baseline operational rules carried forward to 2018-2019
+  region: La Rioja
+  program: Renta de Ciudadanía
+  unit: year
+values:
+  '2017-01-01':
+    value: 23
+  '2018-01-01':
+    value: 23
+  '2019-01-01':
+    value: 23

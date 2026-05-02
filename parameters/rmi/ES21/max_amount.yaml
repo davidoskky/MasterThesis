@@ -1,0 +1,17 @@
+description: Maximum monthly benefit cap (EUR) — Basque Country
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Basque Country
+  program: Renta de Garantía de Ingresos
+  unit: currency-EUR
+  note: Applied when the household size exceeds the listed schedule
+values:
+  '2017-01-01':
+    value: 901.94
+  '2018-01-01':
+    value: 901.94
+  '2019-01-01':
+    value: 901.94

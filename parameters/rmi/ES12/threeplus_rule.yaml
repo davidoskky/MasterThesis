@@ -1,0 +1,16 @@
+description: Three-plus-adults exclusion variant ('allow_all' or 'exclude_if_multi_nucleus_proxy')
+  — Asturias
+metadata:
+  source: policy_db/rmi_baseline_rules.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 baseline operational rules carried forward to 2018-2019
+  region: Asturias
+  program: Salario Social Básico
+values:
+  '2017-01-01':
+    value: exclude_if_multi_nucleus_proxy
+  '2018-01-01':
+    value: exclude_if_multi_nucleus_proxy
+  '2019-01-01':
+    value: exclude_if_multi_nucleus_proxy

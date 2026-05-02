@@ -1,0 +1,138 @@
+description: Monthly guaranteed amount by household size (EUR) — Castilla-La Mancha
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Castilla-La Mancha
+  program: Ingreso Mínimo de Solidaridad
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 420.42
+      '2018-01-01':
+        value: 420.42
+      '2019-01-01':
+        value: 420.42
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 420.42
+      '2018-01-01':
+        value: 420.42
+      '2019-01-01':
+        value: 420.42
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 470.87
+      '2018-01-01':
+        value: 470.87
+      '2019-01-01':
+        value: 470.87
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 521.32
+      '2018-01-01':
+        value: 521.32
+      '2019-01-01':
+        value: 521.32
+- threshold:
+    values:
+      '2017-01-01':
+        value: 5
+      '2018-01-01':
+        value: 5
+      '2019-01-01':
+        value: 5
+  amount:
+    values:
+      '2017-01-01':
+        value: 571.77
+      '2018-01-01':
+        value: 571.77
+      '2019-01-01':
+        value: 571.77
+- threshold:
+    values:
+      '2017-01-01':
+        value: 6
+      '2018-01-01':
+        value: 6
+      '2019-01-01':
+        value: 6
+  amount:
+    values:
+      '2017-01-01':
+        value: 622.22
+      '2018-01-01':
+        value: 622.22
+      '2019-01-01':
+        value: 622.22
+- threshold:
+    values:
+      '2017-01-01':
+        value: 7
+      '2018-01-01':
+        value: 7
+      '2019-01-01':
+        value: 7
+  amount:
+    values:
+      '2017-01-01':
+        value: 672.67
+      '2018-01-01':
+        value: 672.67
+      '2019-01-01':
+        value: 672.67
+- threshold:
+    values:
+      '2017-01-01':
+        value: 8
+      '2018-01-01':
+        value: 8
+      '2019-01-01':
+        value: 8
+  amount:
+    values:
+      '2017-01-01':
+        value: 723.12
+      '2018-01-01':
+        value: 723.12
+      '2019-01-01':
+        value: 723.12

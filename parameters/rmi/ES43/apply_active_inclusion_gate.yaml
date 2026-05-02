@@ -1,0 +1,16 @@
+description: True if the active-inclusion proxy gate is enforced before the income
+  test — Extremadura
+metadata:
+  source: policy_db/rmi_baseline_rules.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 baseline operational rules carried forward to 2018-2019
+  region: Extremadura
+  program: Renta Básica Extremeña de Inserción
+values:
+  '2017-01-01':
+    value: true
+  '2018-01-01':
+    value: true
+  '2019-01-01':
+    value: true

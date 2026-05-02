@@ -1,0 +1,138 @@
+description: Monthly guaranteed amount by household size (EUR) — Murcia
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Murcia
+  program: Renta Básica de Inserción
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 430.27
+      '2018-01-01':
+        value: 430.27
+      '2019-01-01':
+        value: 430.27
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 430.27
+      '2018-01-01':
+        value: 430.27
+      '2019-01-01':
+        value: 430.27
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 537.84
+      '2018-01-01':
+        value: 537.84
+      '2019-01-01':
+        value: 537.84
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 591.62
+      '2018-01-01':
+        value: 591.62
+      '2019-01-01':
+        value: 591.62
+- threshold:
+    values:
+      '2017-01-01':
+        value: 5
+      '2018-01-01':
+        value: 5
+      '2019-01-01':
+        value: 5
+  amount:
+    values:
+      '2017-01-01':
+        value: 644.4
+      '2018-01-01':
+        value: 644.4
+      '2019-01-01':
+        value: 644.4
+- threshold:
+    values:
+      '2017-01-01':
+        value: 6
+      '2018-01-01':
+        value: 6
+      '2019-01-01':
+        value: 6
+  amount:
+    values:
+      '2017-01-01':
+        value: 687.43
+      '2018-01-01':
+        value: 687.43
+      '2019-01-01':
+        value: 687.43
+- threshold:
+    values:
+      '2017-01-01':
+        value: 7
+      '2018-01-01':
+        value: 7
+      '2019-01-01':
+        value: 7
+  amount:
+    values:
+      '2017-01-01':
+        value: 730.46
+      '2018-01-01':
+        value: 730.46
+      '2019-01-01':
+        value: 730.46
+- threshold:
+    values:
+      '2017-01-01':
+        value: 8
+      '2018-01-01':
+        value: 8
+      '2019-01-01':
+        value: 8
+  amount:
+    values:
+      '2017-01-01':
+        value: 806.76
+      '2018-01-01':
+        value: 806.76
+      '2019-01-01':
+        value: 806.76

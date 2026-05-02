@@ -1,0 +1,74 @@
+description: Monthly guaranteed amount by household size (EUR) — Galicia
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Galicia
+  program: Renta de Inclusión Social (RISGA)
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 403.38
+      '2018-01-01':
+        value: 403.38
+      '2019-01-01':
+        value: 403.38
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 478.68
+      '2018-01-01':
+        value: 478.68
+      '2019-01-01':
+        value: 478.68
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 543.22
+      '2018-01-01':
+        value: 543.22
+      '2019-01-01':
+        value: 543.22
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 597.0
+      '2018-01-01':
+        value: 597.0
+      '2019-01-01':
+        value: 597.0

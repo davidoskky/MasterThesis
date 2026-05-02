@@ -1,0 +1,122 @@
+description: Monthly guaranteed amount by household size (EUR) — Balearic Islands
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Balearic Islands
+  program: Renta Social Garantizada
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 430.36
+      '2018-01-01':
+        value: 430.36
+      '2019-01-01':
+        value: 430.36
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 430.36
+      '2018-01-01':
+        value: 430.36
+      '2019-01-01':
+        value: 430.36
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 559.47
+      '2018-01-01':
+        value: 559.47
+      '2019-01-01':
+        value: 559.47
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 645.54
+      '2018-01-01':
+        value: 645.54
+      '2019-01-01':
+        value: 645.54
+- threshold:
+    values:
+      '2017-01-01':
+        value: 5
+      '2018-01-01':
+        value: 5
+      '2019-01-01':
+        value: 5
+  amount:
+    values:
+      '2017-01-01':
+        value: 688.58
+      '2018-01-01':
+        value: 688.58
+      '2019-01-01':
+        value: 688.58
+- threshold:
+    values:
+      '2017-01-01':
+        value: 6
+      '2018-01-01':
+        value: 6
+      '2019-01-01':
+        value: 6
+  amount:
+    values:
+      '2017-01-01':
+        value: 731.61
+      '2018-01-01':
+        value: 731.61
+      '2019-01-01':
+        value: 731.61
+- threshold:
+    values:
+      '2017-01-01':
+        value: 7
+      '2018-01-01':
+        value: 7
+      '2019-01-01':
+        value: 7
+  amount:
+    values:
+      '2017-01-01':
+        value: 774.65
+      '2018-01-01':
+        value: 774.65
+      '2019-01-01':
+        value: 774.65

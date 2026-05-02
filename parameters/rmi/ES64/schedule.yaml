@@ -1,0 +1,90 @@
+description: Monthly guaranteed amount by household size (EUR) — Melilla
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Melilla
+  program: Ingreso Melillense de Integración / Prestación Básica Familiar
+  unit: currency-EUR
+brackets:
+- threshold:
+    values:
+      '2017-01-01':
+        value: 1
+      '2018-01-01':
+        value: 1
+      '2019-01-01':
+        value: 1
+  amount:
+    values:
+      '2017-01-01':
+        value: 458.64
+      '2018-01-01':
+        value: 458.64
+      '2019-01-01':
+        value: 458.64
+- threshold:
+    values:
+      '2017-01-01':
+        value: 2
+      '2018-01-01':
+        value: 2
+      '2019-01-01':
+        value: 2
+  amount:
+    values:
+      '2017-01-01':
+        value: 535.08
+      '2018-01-01':
+        value: 535.08
+      '2019-01-01':
+        value: 535.08
+- threshold:
+    values:
+      '2017-01-01':
+        value: 3
+      '2018-01-01':
+        value: 3
+      '2019-01-01':
+        value: 3
+  amount:
+    values:
+      '2017-01-01':
+        value: 611.52
+      '2018-01-01':
+        value: 611.52
+      '2019-01-01':
+        value: 611.52
+- threshold:
+    values:
+      '2017-01-01':
+        value: 4
+      '2018-01-01':
+        value: 4
+      '2019-01-01':
+        value: 4
+  amount:
+    values:
+      '2017-01-01':
+        value: 687.96
+      '2018-01-01':
+        value: 687.96
+      '2019-01-01':
+        value: 687.96
+- threshold:
+    values:
+      '2017-01-01':
+        value: 5
+      '2018-01-01':
+        value: 5
+      '2019-01-01':
+        value: 5
+  amount:
+    values:
+      '2017-01-01':
+        value: 764.4
+      '2018-01-01':
+        value: 764.4
+      '2019-01-01':
+        value: 764.4

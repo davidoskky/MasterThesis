@@ -1,0 +1,17 @@
+description: Maximum monthly benefit cap (EUR) — Valencia
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Valencia
+  program: Renta Garantizada de Ciudadanía
+  unit: currency-EUR
+  note: Applied when the household size exceeds the listed schedule
+values:
+  '2017-01-01':
+    value: 623.03
+  '2018-01-01':
+    value: 623.03
+  '2019-01-01':
+    value: 623.03

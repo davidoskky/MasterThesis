@@ -1,0 +1,17 @@
+description: Maximum monthly benefit cap (EUR) — Andalusia
+metadata:
+  source: policy_db/rmi_baseline_schedule.parquet
+  source_year: 2017
+  assumption_no_change: true
+  assumption_note: 2017 parameters carried forward to 2018-2019
+  region: Andalusia
+  program: Ingreso Mínimo de Solidaridad
+  unit: currency-EUR
+  note: Applied when the household size exceeds the listed schedule
+values:
+  '2017-01-01':
+    value: 655.2
+  '2018-01-01':
+    value: 655.2
+  '2019-01-01':
+    value: 655.2
