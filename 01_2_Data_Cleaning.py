@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
 import logging
+from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
-
 
 BASE_PATH = Path(r"C:/Users/diana/Documents/Master-Policy Economics/Thesis")
 DATA_PREFIX = "datos_"
@@ -22,8 +21,7 @@ FORCE_REBUILD = False
 STRICT_TR_REQUIRED = True
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -73,8 +71,9 @@ SCHEMA = {
         "employee_cash_income_net": ["PY010N"],
         "employee_noncash_income_net": ["PY020N"],
         "selfemployment_income_net": ["PY050N"],
-    }
+    },
 }
+
 
 def make_paths(year: int) -> dict[str, Path]:
     root = BASE_PATH / f"{DATA_PREFIX}{year}"
@@ -98,6 +97,7 @@ def read_dta(path: Path) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(path)
     return pd.read_stata(path, convert_categoricals=False)
+
 
 def first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> str | None:
     for c in candidates:
@@ -130,7 +130,7 @@ def get_series(
     candidates: list[str],
     *,
     as_id: bool = False,
-    numeric: bool = False
+    numeric: bool = False,
 ) -> pd.Series:
     col = first_existing(df, candidates)
     if col is None:
@@ -167,22 +167,20 @@ def safe_left_merge(
     on: str,
     validate: str,
     left_name: str,
-    right_name: str
+    right_name: str,
 ) -> pd.DataFrame:
     n0 = len(left)
     out = left.merge(right, on=on, how="left", validate=validate)
     if len(out) != n0:
-        raise ValueError(f"Row count changed in merge {left_name} <- {right_name}: {n0} -> {len(out)}")
+        raise ValueError(
+            f"Row count changed in merge {left_name} <- {right_name}: {n0} -> {len(out)}"
+        )
     return out
 
 
 def recode_yes_no(code: pd.Series) -> pd.Series:
     x = to_num(code)
-    out = np.select(
-        [x.eq(1), x.eq(2)],
-        [1.0, 0.0],
-        default=np.nan
-    )
+    out = np.select([x.eq(1), x.eq(2)], [1.0, 0.0], default=np.nan)
     return pd.Series(out, index=code.index, dtype="float64")
 
 
@@ -193,17 +191,14 @@ def clean_nonnegative_num(s: pd.Series) -> pd.Series:
 
 def recode_nationality_foreign(code: pd.Series) -> pd.Series:
     x = to_num(code)
-    out = np.where(
-        x.eq(1),
-        0.0,
-        np.where(x.notna(), 1.0, np.nan)
-    )
+    out = np.where(x.eq(1), 0.0, np.where(x.notna(), 1.0, np.nan))
     return pd.Series(out, index=code.index, dtype="float64")
 
 
 # =============================================================================
 # DOMAIN HELPERS
 # =============================================================================
+
 
 def recode_region_name(region_code: pd.Series) -> pd.Series:
     mapping = {
@@ -246,11 +241,7 @@ def derive_age(tr: pd.DataFrame, year: int) -> pd.Series:
 
 def recode_sex(code: pd.Series) -> pd.Series:
     x = to_num(code)
-    out = np.select(
-        [x.eq(1), x.eq(2)],
-        ["male", "female"],
-        default=pd.NA
-    )
+    out = np.select([x.eq(1), x.eq(2)], ["male", "female"], default=pd.NA)
     return pd.Series(out, index=code.index, dtype="string")
 
 
@@ -288,7 +279,7 @@ def recode_activity_status(tp: pd.DataFrame) -> pd.Series:
             "home_care",
             "other_inactive",
         ],
-        default=pd.NA
+        default=pd.NA,
     )
 
     return pd.Series(out, index=tp.index, dtype="string")
@@ -325,14 +316,17 @@ def derive_household_id_from_person_id(person_id: pd.Series) -> pd.Series:
     pid = to_id(person_id)
     return pid.str[:-2]
 
+
 def load_td_clean(path: Path) -> pd.DataFrame:
     td = read_dta(path)
 
-    out = pd.DataFrame({
-        "household_id": get_series(td, SCHEMA["td"]["household_id"], as_id=True),
-        "region_code": get_series(td, SCHEMA["td"]["region_code"], as_id=True),
-        "weight_hh": get_series(td, SCHEMA["td"]["weight_hh"], numeric=True),
-    })
+    out = pd.DataFrame(
+        {
+            "household_id": get_series(td, SCHEMA["td"]["household_id"], as_id=True),
+            "region_code": get_series(td, SCHEMA["td"]["region_code"], as_id=True),
+            "weight_hh": get_series(td, SCHEMA["td"]["weight_hh"], numeric=True),
+        }
+    )
     out["region_name"] = recode_region_name(out["region_code"])
 
     ensure_unique(out, "household_id", "td")
@@ -345,40 +339,47 @@ def load_th_clean(path: Path) -> pd.DataFrame:
     capital_col = first_existing(th, SCHEMA["th"]["capital_income"])
     capital_income = to_num(th[capital_col]) if capital_col else empty_num(th.index)
 
-    out = pd.DataFrame({
-        "household_id": get_series(th, SCHEMA["th"]["household_id"], as_id=True),
-        "household_size_raw": clean_nonnegative(
-            get_series(th, SCHEMA["th"]["household_size_raw"], numeric=True)
-        ),
-        "official_hh_type": get_series(th, SCHEMA["th"]["official_hh_type"], numeric=True),
-
-        "income_after_transfers_annual": get_series(
-            th, SCHEMA["th"]["income_after_transfers"], numeric=True
-        ),
-        "income_before_transfers_annual": get_series(
-            th, SCHEMA["th"]["income_before_transfers"], numeric=True
-        ),
-        "capital_income_annual": capital_income,
-        "rental_income_gross_annual": get_series(
-            th, SCHEMA["th"]["rental_income_gross"], numeric=True
-        ),
-
-        "mortgage_interest_paid_annual": clean_nonnegative(
-            get_series(th, SCHEMA["th"]["mortgage_interest_paid"], numeric=True)
-        ),
-        "wealth_tax_paid_annual": clean_nonnegative(
-            get_series(th, SCHEMA["th"]["wealth_tax_paid"], numeric=True)
-        ),
-
-        "tenure_status": get_series(th, SCHEMA["th"]["tenure_status"], numeric=True),
-        "consumption_units": clean_nonnegative(
-            get_series(th, SCHEMA["th"]["consumption_units"], numeric=True)
-        ),
-        "poverty_raw": get_series(th, SCHEMA["th"]["poverty"], numeric=True),
-        "matdep_raw": get_series(th, SCHEMA["th"]["matdep"], numeric=True),
-        "responsible_person_1": get_series(th, SCHEMA["th"]["responsible_person_1"], as_id=True),
-        "responsible_person_2": get_series(th, SCHEMA["th"]["responsible_person_2"], as_id=True),
-    })
+    out = pd.DataFrame(
+        {
+            "household_id": get_series(th, SCHEMA["th"]["household_id"], as_id=True),
+            "household_size_raw": clean_nonnegative(
+                get_series(th, SCHEMA["th"]["household_size_raw"], numeric=True)
+            ),
+            "official_hh_type": get_series(
+                th, SCHEMA["th"]["official_hh_type"], numeric=True
+            ),
+            "income_after_transfers_annual": get_series(
+                th, SCHEMA["th"]["income_after_transfers"], numeric=True
+            ),
+            "income_before_transfers_annual": get_series(
+                th, SCHEMA["th"]["income_before_transfers"], numeric=True
+            ),
+            "capital_income_annual": capital_income,
+            "rental_income_gross_annual": get_series(
+                th, SCHEMA["th"]["rental_income_gross"], numeric=True
+            ),
+            "mortgage_interest_paid_annual": clean_nonnegative(
+                get_series(th, SCHEMA["th"]["mortgage_interest_paid"], numeric=True)
+            ),
+            "wealth_tax_paid_annual": clean_nonnegative(
+                get_series(th, SCHEMA["th"]["wealth_tax_paid"], numeric=True)
+            ),
+            "tenure_status": get_series(
+                th, SCHEMA["th"]["tenure_status"], numeric=True
+            ),
+            "consumption_units": clean_nonnegative(
+                get_series(th, SCHEMA["th"]["consumption_units"], numeric=True)
+            ),
+            "poverty_raw": get_series(th, SCHEMA["th"]["poverty"], numeric=True),
+            "matdep_raw": get_series(th, SCHEMA["th"]["matdep"], numeric=True),
+            "responsible_person_1": get_series(
+                th, SCHEMA["th"]["responsible_person_1"], as_id=True
+            ),
+            "responsible_person_2": get_series(
+                th, SCHEMA["th"]["responsible_person_2"], as_id=True
+            ),
+        }
+    )
 
     ensure_unique(out, "household_id", "th")
     return out
@@ -405,23 +406,34 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
     tr["sex"] = recode_sex(get_series(tr, SCHEMA["tr"]["sex"], numeric=True))
     tr["partner_id"] = get_series(tr, SCHEMA["tr"]["partner_id"], as_id=True)
     tr["has_partner_id"] = (
-        tr["partner_id"].notna() &
-        ~tr["partner_id"].isin(["0", ""])
+        tr["partner_id"].notna() & ~tr["partner_id"].isin(["0", ""])
     ).astype(float)
     tr["weight_r"] = get_series(tr, SCHEMA["tr"]["weight_r"], numeric=True)
 
-    person = tr[[
-        "person_id", "household_id", "household_id_source",
-        "age", "sex", "partner_id", "has_partner_id", "weight_r"
-    ]].copy()
+    person = tr[
+        [
+            "person_id",
+            "household_id",
+            "household_id_source",
+            "age",
+            "sex",
+            "partner_id",
+            "has_partner_id",
+            "weight_r",
+        ]
+    ].copy()
 
     if tp_path.exists():
         tp = read_dta(tp_path).copy()
         tp["person_id"] = get_series(tp, SCHEMA["tp"]["person_id"], as_id=True)
 
         tp["weight_p"] = get_series(tp, SCHEMA["tp"]["weight_p"], numeric=True)
-        tp["weight_selected_resp"] = get_series(tp, SCHEMA["tp"]["weight_selected_resp"], numeric=True)
-        tp["person_weight_preferred"] = tp["weight_selected_resp"].combine_first(tp["weight_p"])
+        tp["weight_selected_resp"] = get_series(
+            tp, SCHEMA["tp"]["weight_selected_resp"], numeric=True
+        )
+        tp["person_weight_preferred"] = tp["weight_selected_resp"].combine_first(
+            tp["weight_p"]
+        )
 
         tp["activity_status_detail"] = recode_activity_status(tp)
         tp["activity_group"] = recode_activity_group(tp["activity_status_detail"])
@@ -437,12 +449,14 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
         )
 
         tp["social_assistance_income_annual"] = clean_nonnegative_num(
-            get_series(tp, SCHEMA["tp"]["social_assistance_income_annual"], numeric=True)
+            get_series(
+                tp, SCHEMA["tp"]["social_assistance_income_annual"], numeric=True
+            )
         )
         tp["any_social_assistance_income"] = np.where(
             tp["social_assistance_income_annual"].gt(0),
             1.0,
-            np.where(tp["social_assistance_income_annual"].notna(), 0.0, np.nan)
+            np.where(tp["social_assistance_income_annual"].notna(), 0.0, np.nan),
         )
 
         tp["employee_cash_income_net_annual"] = get_series(
@@ -456,45 +470,43 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
         )
 
         tp["labour_income_person_annual"] = (
-            tp["employee_cash_income_net_annual"].fillna(0) +
-            tp["employee_noncash_income_net_annual"].fillna(0) +
-            tp["selfemployment_income_net_annual"].fillna(0)
+            tp["employee_cash_income_net_annual"].fillna(0)
+            + tp["employee_noncash_income_net_annual"].fillna(0)
+            + tp["selfemployment_income_net_annual"].fillna(0)
         )
 
         all_income_missing = (
-            tp["employee_cash_income_net_annual"].isna() &
-            tp["employee_noncash_income_net_annual"].isna() &
-            tp["selfemployment_income_net_annual"].isna()
+            tp["employee_cash_income_net_annual"].isna()
+            & tp["employee_noncash_income_net_annual"].isna()
+            & tp["selfemployment_income_net_annual"].isna()
         )
         tp.loc[all_income_missing, "labour_income_person_annual"] = np.nan
         tp["labour_income_person_monthly"] = tp["labour_income_person_annual"] / 12
 
-        tp = tp[[
-            "person_id",
-            "weight_p",
-            "weight_selected_resp",
-            "person_weight_preferred",
-            "activity_status_detail",
-            "activity_group",
-            "active_job_search",
-            "currently_in_education",
-            "foreign_nationality",
-            "social_assistance_income_annual",
-            "any_social_assistance_income",
-            "employee_cash_income_net_annual",
-            "employee_noncash_income_net_annual",
-            "selfemployment_income_net_annual",
-            "labour_income_person_annual",
-            "labour_income_person_monthly",
-        ]].copy()
+        tp = tp[
+            [
+                "person_id",
+                "weight_p",
+                "weight_selected_resp",
+                "person_weight_preferred",
+                "activity_status_detail",
+                "activity_group",
+                "active_job_search",
+                "currently_in_education",
+                "foreign_nationality",
+                "social_assistance_income_annual",
+                "any_social_assistance_income",
+                "employee_cash_income_net_annual",
+                "employee_noncash_income_net_annual",
+                "selfemployment_income_net_annual",
+                "labour_income_person_annual",
+                "labour_income_person_monthly",
+            ]
+        ].copy()
         ensure_unique(tp, "person_id", "tp")
 
         person = safe_left_merge(
-            person, tp,
-            on="person_id",
-            validate="1:1",
-            left_name="tr",
-            right_name="tp"
+            person, tp, on="person_id", validate="1:1", left_name="tr", right_name="tp"
         )
         person["labour_file_available"] = 1.0
 
@@ -502,7 +514,9 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
         person["weight_p"] = np.nan
         person["weight_selected_resp"] = np.nan
         person["person_weight_preferred"] = np.nan
-        person["activity_status_detail"] = pd.Series(pd.NA, index=person.index, dtype="string")
+        person["activity_status_detail"] = pd.Series(
+            pd.NA, index=person.index, dtype="string"
+        )
         person["activity_group"] = pd.Series(pd.NA, index=person.index, dtype="string")
         person["active_job_search"] = np.nan
         person["currently_in_education"] = np.nan
@@ -534,9 +548,14 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
 # PERSON-HOUSEHOLD LINKAGE CHECK
 # =============================================================================
 
-def check_person_household_linkage(person: pd.DataFrame | None, hh_ids: pd.Series, year: int) -> None:
+
+def check_person_household_linkage(
+    person: pd.DataFrame | None, hh_ids: pd.Series, year: int
+) -> None:
     if person is None or person.empty:
-        logger.warning("Year %s: no person file available for household linkage check", year)
+        logger.warning(
+            "Year %s: no person file available for household linkage check", year
+        )
         return
 
     hh_ids_clean = pd.Series(hh_ids, dtype="string").dropna().drop_duplicates()
@@ -544,16 +563,17 @@ def check_person_household_linkage(person: pd.DataFrame | None, hh_ids: pd.Serie
     share_matched = matched.mean()
 
     logger.info(
-        "Year %s: person->household linkage match rate = %.4f",
-        year, share_matched
+        "Year %s: person->household linkage match rate = %.4f", year, share_matched
     )
 
     if share_matched < 0.98:
         unmatched_sample = person.loc[~matched, ["person_id", "household_id"]].head(10)
         logger.warning(
             "Year %s: low person->household linkage rate. Sample unmatched rows:\n%s",
-            year, unmatched_sample.to_string(index=False)
+            year,
+            unmatched_sample.to_string(index=False),
         )
+
 
 def summarise_household(group: pd.DataFrame) -> pd.Series:
     age = pd.to_numeric(group["age"], errors="coerce")
@@ -576,7 +596,9 @@ def summarise_household(group: pd.DataFrame) -> pd.Series:
 
     n_working_age = int(((age >= 18) & (age <= 64)).sum(skipna=True))
 
-    labour_income_annual = pd.to_numeric(group["labour_income_person_annual"], errors="coerce")
+    labour_income_annual = pd.to_numeric(
+        group["labour_income_person_annual"], errors="coerce"
+    )
     labour_income_monthly = labour_income_annual / 12
 
     reciprocal_links = 0
@@ -593,8 +615,12 @@ def summarise_household(group: pd.DataFrame) -> pd.Series:
 
     couple_present_partner_proxy = float(reciprocal_links >= 2)
 
-    single_adult = float((n_adults == 1) and (n_children == 0)) if age_complete == 1 else np.nan
-    single_parent = float((n_adults == 1) and (n_children > 0)) if age_complete == 1 else np.nan
+    single_adult = (
+        float((n_adults == 1) and (n_children == 0)) if age_complete == 1 else np.nan
+    )
+    single_parent = (
+        float((n_adults == 1) and (n_children > 0)) if age_complete == 1 else np.nan
+    )
     two_adults = float(n_adults == 2) if age_complete == 1 else np.nan
     threeplus_adults = float(n_adults >= 3) if age_complete == 1 else np.nan
     children_present = float(n_children > 0) if age_complete == 1 else np.nan
@@ -602,82 +628,137 @@ def summarise_household(group: pd.DataFrame) -> pd.Series:
     labour_observed = float(group["labour_file_available"].eq(1).all())
 
     active_search = pd.to_numeric(group["active_job_search"], errors="coerce")
-    social_assist = pd.to_numeric(group["social_assistance_income_annual"], errors="coerce")
+    social_assist = pd.to_numeric(
+        group["social_assistance_income_annual"], errors="coerce"
+    )
     foreign_nat = pd.to_numeric(group["foreign_nationality"], errors="coerce")
 
     n_students_18_64 = int(
-        ((group["activity_status_detail"] == "student") & group["working_age_18_64"]).sum()
+        (
+            (group["activity_status_detail"] == "student") & group["working_age_18_64"]
+        ).sum()
     )
     n_retired_18_64 = int(
-        ((group["activity_status_detail"] == "retired") & group["working_age_18_64"]).sum()
+        (
+            (group["activity_status_detail"] == "retired") & group["working_age_18_64"]
+        ).sum()
     )
     n_disabled_18_64 = int(
-        ((group["activity_status_detail"] == "permanently_disabled") & group["working_age_18_64"]).sum()
+        (
+            (group["activity_status_detail"] == "permanently_disabled")
+            & group["working_age_18_64"]
+        ).sum()
     )
 
-    any_active_job_search = float(active_search.eq(1).any()) if active_search.notna().any() else np.nan
-    all_unemployed_searching = float(
-        active_search[group["activity_group_working_age"] == "unemployed"].eq(1).all()
-    ) if (group["activity_group_working_age"] == "unemployed").any() else np.nan
+    any_active_job_search = (
+        float(active_search.eq(1).any()) if active_search.notna().any() else np.nan
+    )
+    all_unemployed_searching = (
+        float(
+            active_search[group["activity_group_working_age"] == "unemployed"]
+            .eq(1)
+            .all()
+        )
+        if (group["activity_group_working_age"] == "unemployed").any()
+        else np.nan
+    )
 
-    hh_social_assistance_income_annual = float(social_assist.sum(skipna=True)) if social_assist.notna().any() else np.nan
-    any_social_assistance_income_hh = float(social_assist.gt(0).any()) if social_assist.notna().any() else np.nan
-    any_foreign_nationality_hh = float(foreign_nat.eq(1).any()) if foreign_nat.notna().any() else np.nan
+    hh_social_assistance_income_annual = (
+        float(social_assist.sum(skipna=True)) if social_assist.notna().any() else np.nan
+    )
+    any_social_assistance_income_hh = (
+        float(social_assist.gt(0).any()) if social_assist.notna().any() else np.nan
+    )
+    any_foreign_nationality_hh = (
+        float(foreign_nat.eq(1).any()) if foreign_nat.notna().any() else np.nan
+    )
 
-    return pd.Series({
-        "n_persons": n_persons,
-        "n_age_missing": n_age_missing,
-        "age_composition_complete": age_complete,
-        "n_adults": n_adults,
-        "n_children": n_children,
-        "n_adults_18plus": n_adults_18plus,
-        "n_adults_23plus": n_adults_23plus,
-        "n_adults_25plus": n_adults_25plus,
-        "single_adult": single_adult,
-        "single_parent": single_parent,
-        "two_adults": two_adults,
-        "threeplus_adults": threeplus_adults,
-        "children_present": children_present,
-        "couple_present_partner_proxy": couple_present_partner_proxy,
-        "n_working_18_64": n_working,
-        "n_unemployed_18_64": n_unemployed,
-        "n_inactive_18_64": n_inactive,
-        "n_missing_18_64": n_missing,
-        "any_working_18_64": float(n_working > 0),
-        "any_unemployed_18_64": float(n_unemployed > 0),
-        "all_working_age_nonworking": float((n_working_age > 0) and (n_working == 0)),
-        "person_composition_observed": 1.0,
-        "labour_observed": labour_observed,
-        "labour_income_hh_annual": float(labour_income_annual.sum(skipna=True)) if labour_income_annual.notna().any() else np.nan,
-        "labour_income_hh_monthly": float(labour_income_monthly.sum(skipna=True)) if labour_income_monthly.notna().any() else np.nan,
-        "any_positive_labour_income": float(labour_income_annual.gt(0).any()) if labour_income_annual.notna().any() else np.nan,
-        "n_students_18_64": n_students_18_64,
-        "n_retired_18_64": n_retired_18_64,
-        "n_disabled_18_64": n_disabled_18_64,
-        "any_active_job_search": any_active_job_search,
-        "all_unemployed_searching": all_unemployed_searching,
-        "hh_social_assistance_income_annual": hh_social_assistance_income_annual,
-        "any_social_assistance_income_hh": any_social_assistance_income_hh,
-        "any_foreign_nationality_hh": any_foreign_nationality_hh,
-    })
+    return pd.Series(
+        {
+            "n_persons": n_persons,
+            "n_age_missing": n_age_missing,
+            "age_composition_complete": age_complete,
+            "n_adults": n_adults,
+            "n_children": n_children,
+            "n_adults_18plus": n_adults_18plus,
+            "n_adults_23plus": n_adults_23plus,
+            "n_adults_25plus": n_adults_25plus,
+            "single_adult": single_adult,
+            "single_parent": single_parent,
+            "two_adults": two_adults,
+            "threeplus_adults": threeplus_adults,
+            "children_present": children_present,
+            "couple_present_partner_proxy": couple_present_partner_proxy,
+            "n_working_18_64": n_working,
+            "n_unemployed_18_64": n_unemployed,
+            "n_inactive_18_64": n_inactive,
+            "n_missing_18_64": n_missing,
+            "any_working_18_64": float(n_working > 0),
+            "any_unemployed_18_64": float(n_unemployed > 0),
+            "all_working_age_nonworking": float(
+                (n_working_age > 0) and (n_working == 0)
+            ),
+            "person_composition_observed": 1.0,
+            "labour_observed": labour_observed,
+            "labour_income_hh_annual": float(labour_income_annual.sum(skipna=True))
+            if labour_income_annual.notna().any()
+            else np.nan,
+            "labour_income_hh_monthly": float(labour_income_monthly.sum(skipna=True))
+            if labour_income_monthly.notna().any()
+            else np.nan,
+            "any_positive_labour_income": float(labour_income_annual.gt(0).any())
+            if labour_income_annual.notna().any()
+            else np.nan,
+            "n_students_18_64": n_students_18_64,
+            "n_retired_18_64": n_retired_18_64,
+            "n_disabled_18_64": n_disabled_18_64,
+            "any_active_job_search": any_active_job_search,
+            "all_unemployed_searching": all_unemployed_searching,
+            "hh_social_assistance_income_annual": hh_social_assistance_income_annual,
+            "any_social_assistance_income_hh": any_social_assistance_income_hh,
+            "any_foreign_nationality_hh": any_foreign_nationality_hh,
+        }
+    )
 
 
-def build_household_composition(person: pd.DataFrame | None, hh_ids: pd.Series) -> pd.DataFrame:
+def build_household_composition(
+    person: pd.DataFrame | None, hh_ids: pd.Series
+) -> pd.DataFrame:
     if person is None or person.empty:
         out = pd.DataFrame({"household_id": hh_ids.drop_duplicates()})
         cols = [
-            "n_persons", "n_age_missing", "age_composition_complete",
-            "n_adults", "n_children",
-            "n_adults_18plus", "n_adults_23plus", "n_adults_25plus",
-            "single_adult", "single_parent", "two_adults", "threeplus_adults",
-            "children_present", "couple_present_partner_proxy",
-            "n_working_18_64", "n_unemployed_18_64", "n_inactive_18_64", "n_missing_18_64",
-            "any_working_18_64", "any_unemployed_18_64", "all_working_age_nonworking",
-            "labour_income_hh_annual", "labour_income_hh_monthly", "any_positive_labour_income",
-            "n_students_18_64", "n_retired_18_64", "n_disabled_18_64",
-            "any_active_job_search", "all_unemployed_searching",
-            "hh_social_assistance_income_annual", "any_social_assistance_income_hh",
-            "any_foreign_nationality_hh"
+            "n_persons",
+            "n_age_missing",
+            "age_composition_complete",
+            "n_adults",
+            "n_children",
+            "n_adults_18plus",
+            "n_adults_23plus",
+            "n_adults_25plus",
+            "single_adult",
+            "single_parent",
+            "two_adults",
+            "threeplus_adults",
+            "children_present",
+            "couple_present_partner_proxy",
+            "n_working_18_64",
+            "n_unemployed_18_64",
+            "n_inactive_18_64",
+            "n_missing_18_64",
+            "any_working_18_64",
+            "any_unemployed_18_64",
+            "all_working_age_nonworking",
+            "labour_income_hh_annual",
+            "labour_income_hh_monthly",
+            "any_positive_labour_income",
+            "n_students_18_64",
+            "n_retired_18_64",
+            "n_disabled_18_64",
+            "any_active_job_search",
+            "all_unemployed_searching",
+            "hh_social_assistance_income_annual",
+            "any_social_assistance_income_hh",
+            "any_foreign_nationality_hh",
         ]
         for c in cols:
             out[c] = np.nan
@@ -693,11 +774,13 @@ def build_household_composition(person: pd.DataFrame | None, hh_ids: pd.Series) 
     ensure_unique(out, "household_id", "household_composition")
     return out
 
+
 def build_responsible_person_proxies(
-    household_raw: pd.DataFrame,
-    person: pd.DataFrame | None
+    household_raw: pd.DataFrame, person: pd.DataFrame | None
 ) -> pd.DataFrame:
-    base = household_raw[["household_id", "responsible_person_1", "responsible_person_2"]].copy()
+    base = household_raw[
+        ["household_id", "responsible_person_1", "responsible_person_2"]
+    ].copy()
 
     if person is None or person.empty:
         for c in [
@@ -721,82 +804,97 @@ def build_responsible_person_proxies(
             base[c] = np.nan
         return base
 
-    lookup = person[[
-        "person_id",
-        "age",
-        "activity_status_detail",
-        "activity_group",
-        "active_job_search",
-        "currently_in_education",
-        "foreign_nationality",
-        "any_social_assistance_income",
-    ]].copy()
+    lookup = person[
+        [
+            "person_id",
+            "age",
+            "activity_status_detail",
+            "activity_group",
+            "active_job_search",
+            "currently_in_education",
+            "foreign_nationality",
+            "any_social_assistance_income",
+        ]
+    ].copy()
 
-    rp1 = base[["household_id", "responsible_person_1"]].rename(columns={"responsible_person_1": "person_id"})
+    rp1 = base[["household_id", "responsible_person_1"]].rename(
+        columns={"responsible_person_1": "person_id"}
+    )
     rp1 = rp1.merge(lookup, on="person_id", how="left", validate="m:1")
-    rp1 = rp1.rename(columns={
-        "age": "rp1_age",
-        "activity_status_detail": "rp1_activity_status_detail",
-        "activity_group": "rp1_activity_group",
-        "active_job_search": "rp1_active_job_search",
-        "currently_in_education": "rp1_currently_in_education",
-        "foreign_nationality": "rp1_foreign_nationality",
-        "any_social_assistance_income": "rp1_any_social_assistance_income",
-    })
+    rp1 = rp1.rename(
+        columns={
+            "age": "rp1_age",
+            "activity_status_detail": "rp1_activity_status_detail",
+            "activity_group": "rp1_activity_group",
+            "active_job_search": "rp1_active_job_search",
+            "currently_in_education": "rp1_currently_in_education",
+            "foreign_nationality": "rp1_foreign_nationality",
+            "any_social_assistance_income": "rp1_any_social_assistance_income",
+        }
+    )
 
-    rp2 = base[["household_id", "responsible_person_2"]].rename(columns={"responsible_person_2": "person_id"})
+    rp2 = base[["household_id", "responsible_person_2"]].rename(
+        columns={"responsible_person_2": "person_id"}
+    )
     rp2 = rp2.merge(lookup, on="person_id", how="left", validate="m:1")
-    rp2 = rp2.rename(columns={
-        "age": "rp2_age",
-        "activity_status_detail": "rp2_activity_status_detail",
-        "activity_group": "rp2_activity_group",
-        "active_job_search": "rp2_active_job_search",
-        "currently_in_education": "rp2_currently_in_education",
-        "foreign_nationality": "rp2_foreign_nationality",
-        "any_social_assistance_income": "rp2_any_social_assistance_income",
-    })
+    rp2 = rp2.rename(
+        columns={
+            "age": "rp2_age",
+            "activity_status_detail": "rp2_activity_status_detail",
+            "activity_group": "rp2_activity_group",
+            "active_job_search": "rp2_active_job_search",
+            "currently_in_education": "rp2_currently_in_education",
+            "foreign_nationality": "rp2_foreign_nationality",
+            "any_social_assistance_income": "rp2_any_social_assistance_income",
+        }
+    )
 
     out = base.copy()
 
     out = safe_left_merge(
         out,
-        rp1[[
-            "household_id",
-            "rp1_age",
-            "rp1_activity_status_detail",
-            "rp1_activity_group",
-            "rp1_active_job_search",
-            "rp1_currently_in_education",
-            "rp1_foreign_nationality",
-            "rp1_any_social_assistance_income",
-        ]],
+        rp1[
+            [
+                "household_id",
+                "rp1_age",
+                "rp1_activity_status_detail",
+                "rp1_activity_group",
+                "rp1_active_job_search",
+                "rp1_currently_in_education",
+                "rp1_foreign_nationality",
+                "rp1_any_social_assistance_income",
+            ]
+        ],
         on="household_id",
         validate="1:1",
         left_name="base",
-        right_name="rp1"
+        right_name="rp1",
     )
 
     out = safe_left_merge(
         out,
-        rp2[[
-            "household_id",
-            "rp2_age",
-            "rp2_activity_status_detail",
-            "rp2_activity_group",
-            "rp2_active_job_search",
-            "rp2_currently_in_education",
-            "rp2_foreign_nationality",
-            "rp2_any_social_assistance_income",
-        ]],
+        rp2[
+            [
+                "household_id",
+                "rp2_age",
+                "rp2_activity_status_detail",
+                "rp2_activity_group",
+                "rp2_active_job_search",
+                "rp2_currently_in_education",
+                "rp2_foreign_nationality",
+                "rp2_any_social_assistance_income",
+            ]
+        ],
         on="household_id",
         validate="1:1",
         left_name="out",
-        right_name="rp2"
+        right_name="rp2",
     )
 
     out["rp1_found"] = np.where(out["rp1_age"].notna(), 1.0, 0.0)
     out["rp2_found"] = np.where(out["rp2_age"].notna(), 1.0, 0.0)
     return out
+
 
 def derive_household_variables(df: pd.DataFrame, year: int) -> pd.DataFrame:
     out = df.copy()
@@ -813,10 +911,10 @@ def derive_household_variables(df: pd.DataFrame, year: int) -> pd.DataFrame:
                 "person_file",
                 "household_file",
             ],
-            default="missing"
+            default="missing",
         ),
         index=out.index,
-        dtype="string"
+        dtype="string",
     )
 
     out["income_before_transfers_monthly"] = out["income_before_transfers_annual"] / 12
@@ -825,91 +923,94 @@ def derive_household_variables(df: pd.DataFrame, year: int) -> pd.DataFrame:
     out["rental_income_monthly"] = out["rental_income_gross_annual"] / 12
 
     out["resources_proxy_baseline_annual"] = out["income_before_transfers_annual"]
-    out["resources_proxy_baseline_monthly"] = out["resources_proxy_baseline_annual"] / 12
+    out["resources_proxy_baseline_monthly"] = (
+        out["resources_proxy_baseline_annual"] / 12
+    )
 
     out["resources_proxy_excl_capital_annual"] = np.where(
-        out["income_before_transfers_annual"].notna() & out["capital_income_annual"].notna(),
-        np.maximum(out["income_before_transfers_annual"] - out["capital_income_annual"], 0),
-        out["income_before_transfers_annual"]
+        out["income_before_transfers_annual"].notna()
+        & out["capital_income_annual"].notna(),
+        np.maximum(
+            out["income_before_transfers_annual"] - out["capital_income_annual"], 0
+        ),
+        out["income_before_transfers_annual"],
     )
-    out["resources_proxy_excl_capital_monthly"] = out["resources_proxy_excl_capital_annual"] / 12
+    out["resources_proxy_excl_capital_monthly"] = (
+        out["resources_proxy_excl_capital_annual"] / 12
+    )
 
     out["any_capital_income"] = np.where(out["capital_income_annual"].gt(0), 1.0, 0.0)
-    out["any_rental_income"] = np.where(out["rental_income_gross_annual"].gt(0), 1.0, 0.0)
+    out["any_rental_income"] = np.where(
+        out["rental_income_gross_annual"].gt(0), 1.0, 0.0
+    )
     out["any_wealth_tax_paid"] = np.where(out["wealth_tax_paid_annual"].gt(0), 1.0, 0.0)
 
     out["wealth_proxy_strict"] = np.where(
-        out["any_capital_income"].eq(1) |
-        out["any_rental_income"].eq(1) |
-        out["any_wealth_tax_paid"].eq(1),
+        out["any_capital_income"].eq(1)
+        | out["any_rental_income"].eq(1)
+        | out["any_wealth_tax_paid"].eq(1),
         1.0,
-        0.0
+        0.0,
     )
 
     out["homeowner"] = np.select(
         [out["tenure_status"].isin([1, 2]), out["tenure_status"].isin([3, 4, 5])],
         [1.0, 0.0],
-        default=np.nan
+        default=np.nan,
     )
 
     out["poverty"] = np.select(
-        [out["poverty_raw"].eq(1), out["poverty_raw"].eq(0)],
-        [1.0, 0.0],
-        default=np.nan
+        [out["poverty_raw"].eq(1), out["poverty_raw"].eq(0)], [1.0, 0.0], default=np.nan
     )
     out["matdep"] = np.select(
-        [out["matdep_raw"].eq(1), out["matdep_raw"].eq(0)],
-        [1.0, 0.0],
-        default=np.nan
+        [out["matdep_raw"].eq(1), out["matdep_raw"].eq(0)], [1.0, 0.0], default=np.nan
     )
 
     out["post"] = np.select(
-        [out["year"] >= 2021, out["year"] <= 2019],
-        [1.0, 0.0],
-        default=np.nan
+        [out["year"] >= 2021, out["year"] <= 2019], [1.0, 0.0], default=np.nan
     )
     out["period"] = pd.Series(
         np.select(
             [out["year"] <= 2019, out["year"] == 2020, out["year"] >= 2021],
             ["pre_2020", "covid_2020", "post_2020"],
-            default=pd.NA
+            default=pd.NA,
         ),
         index=out.index,
-        dtype="string"
+        dtype="string",
     )
 
     out["has_region"] = np.where(out["region_code"].notna(), 1.0, 0.0)
     out["has_household_weight"] = np.where(out["weight_hh"].notna(), 1.0, 0.0)
-    out["has_resources_proxy"] = np.where(out["resources_proxy_baseline_monthly"].notna(), 1.0, 0.0)
-    out["has_household_composition"] = np.where(out["person_composition_observed"].eq(1), 1.0, 0.0)
+    out["has_resources_proxy"] = np.where(
+        out["resources_proxy_baseline_monthly"].notna(), 1.0, 0.0
+    )
+    out["has_household_composition"] = np.where(
+        out["person_composition_observed"].eq(1), 1.0, 0.0
+    )
     out["has_labour_composition"] = np.where(out["labour_observed"].eq(1), 1.0, 0.0)
-    out["has_complete_age_composition"] = np.where(out["age_composition_complete"].eq(1), 1.0, 0.0)
+    out["has_complete_age_composition"] = np.where(
+        out["age_composition_complete"].eq(1), 1.0, 0.0
+    )
 
     out["baseline_sim_data_ok"] = np.where(
-        out["has_region"].eq(1) &
-        out["has_household_weight"].eq(1) &
-        out["has_resources_proxy"].eq(1) &
-        out["household_size"].notna(),
+        out["has_region"].eq(1)
+        & out["has_household_weight"].eq(1)
+        & out["has_resources_proxy"].eq(1)
+        & out["household_size"].notna(),
         1.0,
-        0.0
+        0.0,
     )
 
     out["responsible_person_proxy_available"] = np.where(
-        out["rp1_found"].eq(1) | out["rp2_found"].eq(1),
-        1.0,
-        0.0
+        out["rp1_found"].eq(1) | out["rp2_found"].eq(1), 1.0, 0.0
     )
 
     out["labour_income_observed"] = np.where(
-        out["labour_income_hh_annual"].notna(),
-        1.0,
-        0.0
+        out["labour_income_hh_annual"].notna(), 1.0, 0.0
     )
 
     out["has_labour_income_monthly"] = np.where(
-        out["labour_income_hh_monthly"].gt(0),
-        1.0,
-        0.0
+        out["labour_income_hh_monthly"].gt(0), 1.0, 0.0
     )
 
     excluded_claimant_statuses = ["student", "retired", "permanently_disabled"]
@@ -917,43 +1018,44 @@ def derive_household_variables(df: pd.DataFrame, year: int) -> pd.DataFrame:
     out["rp1_claimant_activity_eligible"] = np.where(
         out["rp1_activity_status_detail"].isin(excluded_claimant_statuses),
         0.0,
-        np.where(out["rp1_activity_status_detail"].notna(), 1.0, np.nan)
+        np.where(out["rp1_activity_status_detail"].notna(), 1.0, np.nan),
     )
 
     out["rp2_claimant_activity_eligible"] = np.where(
         out["rp2_activity_status_detail"].isin(excluded_claimant_statuses),
         0.0,
-        np.where(out["rp2_activity_status_detail"].notna(), 1.0, np.nan)
+        np.where(out["rp2_activity_status_detail"].notna(), 1.0, np.nan),
     )
 
     out["any_responsible_person_claimant_eligible"] = np.where(
-        out["rp1_claimant_activity_eligible"].eq(1) |
-        out["rp2_claimant_activity_eligible"].eq(1),
+        out["rp1_claimant_activity_eligible"].eq(1)
+        | out["rp2_claimant_activity_eligible"].eq(1),
         1.0,
         np.where(
-            out["rp1_claimant_activity_eligible"].notna() |
-            out["rp2_claimant_activity_eligible"].notna(),
+            out["rp1_claimant_activity_eligible"].notna()
+            | out["rp2_claimant_activity_eligible"].notna(),
             0.0,
-            np.nan
-        )
+            np.nan,
+        ),
     )
 
     out["any_responsible_person_active_search"] = np.where(
-        out["rp1_active_job_search"].eq(1) |
-        out["rp2_active_job_search"].eq(1),
+        out["rp1_active_job_search"].eq(1) | out["rp2_active_job_search"].eq(1),
         1.0,
         np.where(
-            out["rp1_active_job_search"].notna() |
-            out["rp2_active_job_search"].notna(),
+            out["rp1_active_job_search"].notna() | out["rp2_active_job_search"].notna(),
             0.0,
-            np.nan
-        )
+            np.nan,
+        ),
     )
 
     ensure_unique(out, "household_id", f"household_final_{year}")
     return out
 
-def process_year(year: int, force_rebuild: bool = False) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+
+def process_year(
+    year: int, force_rebuild: bool = False
+) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     hh_cache = hh_cache_path(year)
     person_cache = person_cache_path(year)
 
@@ -983,25 +1085,18 @@ def process_year(year: int, force_rebuild: bool = False) -> tuple[pd.DataFrame |
     print(rp.columns.tolist())
 
     hh = safe_left_merge(
-        th, hh_comp,
+        th,
+        hh_comp,
         on="household_id",
         validate="1:1",
         left_name="th",
-        right_name="hh_comp"
+        right_name="hh_comp",
     )
     hh = safe_left_merge(
-        hh, rp,
-        on="household_id",
-        validate="1:1",
-        left_name="hh",
-        right_name="rp"
+        hh, rp, on="household_id", validate="1:1", left_name="hh", right_name="rp"
     )
     hh = safe_left_merge(
-        hh, td,
-        on="household_id",
-        validate="1:1",
-        left_name="hh",
-        right_name="td"
+        hh, td, on="household_id", validate="1:1", left_name="hh", right_name="td"
     )
 
     hh = derive_household_variables(hh, year)
@@ -1010,27 +1105,43 @@ def process_year(year: int, force_rebuild: bool = False) -> tuple[pd.DataFrame |
     if person is None:
         person_out = pd.DataFrame()
     else:
-        hh_context = hh[[
-            "household_id", "year", "region_code", "region_name", "weight_hh",
-            "household_size", "n_adults", "n_children",
-            "income_before_transfers_annual", "income_after_transfers_annual",
-            "resources_proxy_baseline_monthly", "resources_proxy_excl_capital_monthly",
-            "labour_income_hh_annual", "labour_income_hh_monthly",
-            "any_positive_labour_income", "wealth_proxy_strict",
-            "any_active_job_search", "all_unemployed_searching",
-            "hh_social_assistance_income_annual", "any_social_assistance_income_hh",
-            "any_foreign_nationality_hh",
-            "any_responsible_person_claimant_eligible",
-            "any_responsible_person_active_search",
-            "poverty", "matdep"
-        ]].copy()
+        hh_context = hh[
+            [
+                "household_id",
+                "year",
+                "region_code",
+                "region_name",
+                "weight_hh",
+                "household_size",
+                "n_adults",
+                "n_children",
+                "income_before_transfers_annual",
+                "income_after_transfers_annual",
+                "resources_proxy_baseline_monthly",
+                "resources_proxy_excl_capital_monthly",
+                "labour_income_hh_annual",
+                "labour_income_hh_monthly",
+                "any_positive_labour_income",
+                "wealth_proxy_strict",
+                "any_active_job_search",
+                "all_unemployed_searching",
+                "hh_social_assistance_income_annual",
+                "any_social_assistance_income_hh",
+                "any_foreign_nationality_hh",
+                "any_responsible_person_claimant_eligible",
+                "any_responsible_person_active_search",
+                "poverty",
+                "matdep",
+            ]
+        ].copy()
 
         person_out = safe_left_merge(
-            person, hh_context,
+            person,
+            hh_context,
             on="household_id",
             validate="m:1",
             left_name="person",
-            right_name="hh_context"
+            right_name="hh_context",
         )
 
     person_out.to_parquet(person_cache, index=False)
@@ -1058,19 +1169,31 @@ def weighted_share(x: pd.Series, w: pd.Series, value=1.0) -> float:
 def make_checks(hh: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for year, g in hh.groupby("year"):
-        rows.append({
-            "year": year,
-            "n_households": len(g),
-            "weighted_mean_hhsize": weighted_mean(g["household_size"], g["weight_hh"]),
-            "weighted_poverty_rate": 100 * weighted_share(g["poverty"], g["weight_hh"], 1.0),
-            "weighted_matdep_rate": 100 * weighted_share(g["matdep"], g["weight_hh"], 1.0),
-            "unweighted_pct_baseline_sim_data_ok": 100 * g["baseline_sim_data_ok"].eq(1).mean(),
-            "unweighted_pct_has_household_composition": 100 * g["has_household_composition"].eq(1).mean(),
-            "unweighted_pct_has_labour_composition": 100 * g["has_labour_composition"].eq(1).mean(),
-            "unweighted_pct_has_complete_age_composition": 100 * g["has_complete_age_composition"].eq(1).mean(),
-            "unweighted_pct_responsible_person_proxy_available": 100 * g["responsible_person_proxy_available"].eq(1).mean(),
-        })
+        rows.append(
+            {
+                "year": year,
+                "n_households": len(g),
+                "weighted_mean_hhsize": weighted_mean(
+                    g["household_size"], g["weight_hh"]
+                ),
+                "weighted_poverty_rate": 100
+                * weighted_share(g["poverty"], g["weight_hh"], 1.0),
+                "weighted_matdep_rate": 100
+                * weighted_share(g["matdep"], g["weight_hh"], 1.0),
+                "unweighted_pct_baseline_sim_data_ok": 100
+                * g["baseline_sim_data_ok"].eq(1).mean(),
+                "unweighted_pct_has_household_composition": 100
+                * g["has_household_composition"].eq(1).mean(),
+                "unweighted_pct_has_labour_composition": 100
+                * g["has_labour_composition"].eq(1).mean(),
+                "unweighted_pct_has_complete_age_composition": 100
+                * g["has_complete_age_composition"].eq(1).mean(),
+                "unweighted_pct_responsible_person_proxy_available": 100
+                * g["responsible_person_proxy_available"].eq(1).mean(),
+            }
+        )
     return pd.DataFrame(rows)
+
 
 def main() -> None:
     all_hh = []
