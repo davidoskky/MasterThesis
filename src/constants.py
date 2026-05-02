@@ -110,3 +110,9 @@ HOUSEHOLD_REQUIRED_COLUMNS = [
 ]
 
 MAX_REASONABLE_AGE = 125
+
+EXCLUDED_SIMULATION_REGIONS: frozenset[str] = frozenset(
+    {
+        "ES63",  # Ceuta: not in the household data used for the main simulation
+    }
+)
