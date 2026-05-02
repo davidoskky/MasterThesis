@@ -65,23 +65,17 @@ def weighted_quantile(values: pd.Series, weights: pd.Series, quantile: float) ->
     weights = pd.to_numeric(weights, errors="raise")
 
     mask = values.notna() & weights.notna()
-    if mask.sum() == 0:
+    if not mask.any():
         return np.nan
 
-    v = values[mask].to_numpy()
-    w = weights[mask].to_numpy()
-
-    order = np.argsort(v)
-    v = v[order]
-    w = w[order]
-
-    cum_w = np.cumsum(w)
-    cutoff = quantile * w.sum()
-
-    idx = np.searchsorted(cum_w, cutoff, side="left")
-    idx = min(idx, len(v) - 1)
-
-    return float(v[idx])
+    return float(
+        np.quantile(
+            values[mask].to_numpy(),
+            q=quantile,
+            weights=weights[mask].to_numpy(),
+            method="inverted_cdf",
+        )
+    )
 
 
 def safe_pct_gap(simulated: float, observed: float) -> float:
