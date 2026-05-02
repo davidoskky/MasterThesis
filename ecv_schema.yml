@@ -46,9 +46,9 @@ tr:
   sex: { columns: [RB090], type: numeric }
   partner_id: { columns: [RB240], type: id }
   weight_r: { columns: [RB050], type: numeric }
-  age_current: { columns: [RB082], type: numeric }
-  age_income_ref: { columns: [RB081], type: numeric }
-  birth_year: { columns: [RB080], type: numeric }
+  age_current: { columns: [RB082], type: numeric, nonneg: true }
+  age_income_ref: { columns: [RB081], type: numeric, nonneg: true }
+  birth_year: { columns: [RB080], type: numeric, nonneg: true }
 
 tp:
   person_id: { columns: [PB030, RB030], type: id, required: true }
