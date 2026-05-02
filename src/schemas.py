@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pandera as pa
+import pandera.pandas as pa
 
 # ── Data-cleaning outputs ─────────────────────────────────────────────────────
 
@@ -15,7 +15,9 @@ ThSchema = pa.DataFrameSchema(
     {
         "household_id": pa.Column(nullable=False, unique=True),
         "household_size_raw": pa.Column(nullable=True, checks=pa.Check.ge(0)),
-        "mortgage_interest_paid_annual": pa.Column(nullable=True, checks=pa.Check.ge(0)),
+        "mortgage_interest_paid_annual": pa.Column(
+            nullable=True, checks=pa.Check.ge(0)
+        ),
         "wealth_tax_paid_annual": pa.Column(nullable=True, checks=pa.Check.ge(0)),
         "consumption_units": pa.Column(nullable=True, checks=pa.Check.ge(0)),
     }

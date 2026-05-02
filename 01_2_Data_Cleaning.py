@@ -7,13 +7,12 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 
-from schema_loader import load_ecv_schema
-from schemas import (
+from src.extractors import extract_section, load_td_clean, load_th_clean, read_dta
+from src.schema_loader import load_ecv_schema
+from src.schemas import (
     HouseholdCompositionSchema,
     HouseholdFinalSchema,
     PersonSchema,
-    TdSchema,
-    ThSchema,
     TpSchema,
 )
 
@@ -79,12 +78,6 @@ def person_cache_path(year: int) -> Path:
     return PROCESSED_DIR / f"person_{year}.parquet"
 
 
-def read_dta(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(path)
-    return pd.read_stata(path, convert_categoricals=False)
-
-
 def first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> str | None:
     for c in candidates:
         if c in df.columns:
@@ -139,7 +132,6 @@ def clean_nonnegative(s: pd.Series) -> pd.Series:
     return x.mask(x < 0, np.nan)
 
 
-
 def safe_left_merge(
     left: pd.DataFrame,
     right: pd.DataFrame,
@@ -175,43 +167,14 @@ def recode_nationality_foreign(code: pd.Series) -> pd.Series:
 # =============================================================================
 
 
-def recode_region_name(region_code: pd.Series) -> pd.Series:
-    mapping = {
-        "ES11": "Galicia",
-        "ES12": "Principado de Asturias",
-        "ES13": "Cantabria",
-        "ES21": "País Vasco",
-        "ES22": "Comunidad Foral de Navarra",
-        "ES23": "La Rioja",
-        "ES24": "Aragón",
-        "ES30": "Comunidad de Madrid",
-        "ES41": "Castilla y León",
-        "ES42": "Castilla-La Mancha",
-        "ES43": "Extremadura",
-        "ES51": "Cataluña",
-        "ES52": "Comunidad Valenciana",
-        "ES53": "Illes Balears",
-        "ES61": "Andalucía",
-        "ES62": "Región de Murcia",
-        "ES63": "Ciudad Autónoma de Ceuta",
-        "ES64": "Ciudad Autónoma de Melilla",
-        "ES70": "Canarias",
-        "ESZZ": "Extra-Regio",
-    }
-    return region_code.map(mapping).astype("string")
-
-
 def derive_age(tr: pd.DataFrame, year: int) -> pd.Series:
-    if "RB082" in tr.columns:
-        age = to_num(tr["RB082"])
-    elif "RB081" in tr.columns:
-        age = to_num(tr["RB081"])
-    elif "RB080" in tr.columns:
-        age = year - to_num(tr["RB080"])
-    else:
-        age = empty_num(tr.index)
+    age = tr["age_current"].combine_first(tr["age_income_ref"])
 
-    return age.mask((age < 0) | (age > 110), np.nan)
+    if "birth_year" in tr.columns:
+        age_from_birth_year = year - tr["birth_year"]
+        age = age.combine_first(age_from_birth_year)
+
+    return pd.to_numeric(age, errors="raise")
 
 
 def recode_sex(code: pd.Series) -> pd.Series:
@@ -292,96 +255,41 @@ def derive_household_id_from_person_id(person_id: pd.Series) -> pd.Series:
     return pid.str[:-2]
 
 
-def load_td_clean(path: Path) -> pd.DataFrame:
-    td = read_dta(path)
-
-    out = pd.DataFrame(
-        {
-            "household_id": get_series(td, SCHEMA["td"]["household_id"], as_id=True),
-            "region_code": get_series(td, SCHEMA["td"]["region_code"], as_id=True),
-            "weight_hh": get_series(td, SCHEMA["td"]["weight_hh"], numeric=True),
-        }
-    )
-    out["region_name"] = recode_region_name(out["region_code"])
-
-    return TdSchema.validate(out)
-
-
-def load_th_clean(path: Path) -> pd.DataFrame:
-    th = read_dta(path)
-
-    capital_col = first_existing(th, SCHEMA["th"]["capital_income"])
-    capital_income = to_num(th[capital_col]) if capital_col else empty_num(th.index)
-
-    out = pd.DataFrame(
-        {
-            "household_id": get_series(th, SCHEMA["th"]["household_id"], as_id=True),
-            "household_size_raw": clean_nonnegative(
-                get_series(th, SCHEMA["th"]["household_size_raw"], numeric=True)
-            ),
-            "official_hh_type": get_series(
-                th, SCHEMA["th"]["official_hh_type"], numeric=True
-            ),
-            "income_after_transfers_annual": get_series(
-                th, SCHEMA["th"]["income_after_transfers"], numeric=True
-            ),
-            "income_before_transfers_annual": get_series(
-                th, SCHEMA["th"]["income_before_transfers"], numeric=True
-            ),
-            "capital_income_annual": capital_income,
-            "rental_income_gross_annual": get_series(
-                th, SCHEMA["th"]["rental_income_gross"], numeric=True
-            ),
-            "mortgage_interest_paid_annual": clean_nonnegative(
-                get_series(th, SCHEMA["th"]["mortgage_interest_paid"], numeric=True)
-            ),
-            "wealth_tax_paid_annual": clean_nonnegative(
-                get_series(th, SCHEMA["th"]["wealth_tax_paid"], numeric=True)
-            ),
-            "tenure_status": get_series(
-                th, SCHEMA["th"]["tenure_status"], numeric=True
-            ),
-            "consumption_units": clean_nonnegative(
-                get_series(th, SCHEMA["th"]["consumption_units"], numeric=True)
-            ),
-            "poverty_raw": get_series(th, SCHEMA["th"]["poverty"], numeric=True),
-            "matdep_raw": get_series(th, SCHEMA["th"]["matdep"], numeric=True),
-            "responsible_person_1": get_series(
-                th, SCHEMA["th"]["responsible_person_1"], as_id=True
-            ),
-            "responsible_person_2": get_series(
-                th, SCHEMA["th"]["responsible_person_2"], as_id=True
-            ),
-        }
-    )
-
-    return ThSchema.validate(out)
+def recode_activity_status_from_clean_tp(tp: pd.DataFrame) -> pd.Series:
+    return tp["labour_status_detail"]
 
 
 def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame | None:
     if not tr_path.exists():
         if STRICT_TR_REQUIRED:
-            raise FileNotFoundError(f"Missing Tr file for {year}")
+            raise FileNotFoundError(f"Missing Tr file for {year}: {tr_path}")
         return None
 
-    tr = read_dta(tr_path).copy()
-    tr["person_id"] = get_series(tr, SCHEMA["tr"]["person_id"], as_id=True)
+    tr_raw = read_dta(tr_path)
 
-    hh_id_direct = get_series(tr, SCHEMA["tr"].get("household_id", []), as_id=True)
-    if hh_id_direct.notna().any():
-        tr["household_id"] = hh_id_direct
+    tr = extract_section(
+        tr_raw,
+        section="tr",
+        schema=SCHEMA,
+        source_path=tr_path,
+    )
+
+    # Household ID: use direct household_id if available, otherwise derive from person_id.
+    if "household_id" in tr.columns and tr["household_id"].notna().any():
         tr["household_id_source"] = "direct_from_tr"
     else:
         tr["household_id"] = derive_household_id_from_person_id(tr["person_id"])
         tr["household_id_source"] = "derived_from_person_id"
 
+    # Important: derive_age should now work from cleaned columns:
+    # age_current, age_income_ref, birth_year.
     tr["age"] = derive_age(tr, year)
-    tr["sex"] = recode_sex(get_series(tr, SCHEMA["tr"]["sex"], numeric=True))
-    tr["partner_id"] = get_series(tr, SCHEMA["tr"]["partner_id"], as_id=True)
+
+    tr["sex"] = recode_sex(tr["sex"])
+
     tr["has_partner_id"] = (
         tr["partner_id"].notna() & ~tr["partner_id"].isin(["0", ""])
     ).astype(float)
-    tr["weight_r"] = get_series(tr, SCHEMA["tr"]["weight_r"], numeric=True)
 
     person = tr[
         [
@@ -397,49 +305,32 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
     ].copy()
 
     if tp_path.exists():
-        tp = read_dta(tp_path).copy()
-        tp["person_id"] = get_series(tp, SCHEMA["tp"]["person_id"], as_id=True)
+        tp_raw = read_dta(tp_path)
 
-        tp["weight_p"] = get_series(tp, SCHEMA["tp"]["weight_p"], numeric=True)
-        tp["weight_selected_resp"] = get_series(
-            tp, SCHEMA["tp"]["weight_selected_resp"], numeric=True
+        tp = extract_section(
+            tp_raw,
+            section="tp",
+            schema=SCHEMA,
+            source_path=tp_path,
         )
+
         tp["person_weight_preferred"] = tp["weight_selected_resp"].combine_first(
             tp["weight_p"]
         )
 
-        tp["activity_status_detail"] = recode_activity_status(tp)
+        # This should use the cleaned column "labour_status_detail",
+        # not raw PL031 / PL032 columns.
+        tp["activity_status_detail"] = recode_activity_status_from_clean_tp(tp)
         tp["activity_group"] = recode_activity_group(tp["activity_status_detail"])
 
-        tp["active_job_search"] = recode_yes_no(
-            get_series(tp, SCHEMA["tp"]["active_job_search"], numeric=True)
-        )
-        tp["currently_in_education"] = recode_yes_no(
-            get_series(tp, SCHEMA["tp"]["currently_in_education"], numeric=True)
-        )
-        tp["foreign_nationality"] = recode_nationality_foreign(
-            get_series(tp, SCHEMA["tp"]["nationality"], numeric=True)
-        )
+        tp["active_job_search"] = recode_yes_no(tp["active_job_search"])
+        tp["currently_in_education"] = recode_yes_no(tp["currently_in_education"])
+        tp["foreign_nationality"] = recode_nationality_foreign(tp["nationality"])
 
-        tp["social_assistance_income_annual"] = clean_nonnegative(
-            get_series(
-                tp, SCHEMA["tp"]["social_assistance_income_annual"], numeric=True
-            )
-        )
         tp["any_social_assistance_income"] = np.where(
             tp["social_assistance_income_annual"].gt(0),
             1.0,
             np.where(tp["social_assistance_income_annual"].notna(), 0.0, np.nan),
-        )
-
-        tp["employee_cash_income_net_annual"] = get_series(
-            tp, SCHEMA["tp"]["employee_cash_income_net"], numeric=True
-        )
-        tp["employee_noncash_income_net_annual"] = get_series(
-            tp, SCHEMA["tp"]["employee_noncash_income_net"], numeric=True
-        )
-        tp["selfemployment_income_net_annual"] = get_series(
-            tp, SCHEMA["tp"]["selfemployment_income_net"], numeric=True
         )
 
         tp["labour_income_person_annual"] = (
@@ -453,6 +344,7 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
             & tp["employee_noncash_income_net_annual"].isna()
             & tp["selfemployment_income_net_annual"].isna()
         )
+
         tp.loc[all_income_missing, "labour_income_person_annual"] = np.nan
         tp["labour_income_person_monthly"] = tp["labour_income_person_annual"] / 12
 
@@ -476,34 +368,26 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
                 "labour_income_person_monthly",
             ]
         ].copy()
-        TpSchema.validate(tp)
+
+        tp = TpSchema.validate(tp, lazy=True)
 
         person = safe_left_merge(
-            person, tp, on="person_id", validate="1:1", left_name="tr", right_name="tp"
+            person,
+            tp,
+            on="person_id",
+            validate="1:1",
+            left_name="tr",
+            right_name="tp",
         )
+
         person["labour_file_available"] = 1.0
 
     else:
-        person["weight_p"] = np.nan
-        person["weight_selected_resp"] = np.nan
-        person["person_weight_preferred"] = np.nan
-        person["activity_status_detail"] = pd.Series(
-            pd.NA, index=person.index, dtype="string"
-        )
-        person["activity_group"] = pd.Series(pd.NA, index=person.index, dtype="string")
-        person["active_job_search"] = np.nan
-        person["currently_in_education"] = np.nan
-        person["foreign_nationality"] = np.nan
-        person["social_assistance_income_annual"] = np.nan
-        person["any_social_assistance_income"] = np.nan
+        person = add_missing_tp_columns(person)
         person["labour_file_available"] = 0.0
-        person["employee_cash_income_net_annual"] = np.nan
-        person["employee_noncash_income_net_annual"] = np.nan
-        person["selfemployment_income_net_annual"] = np.nan
-        person["labour_income_person_annual"] = np.nan
-        person["labour_income_person_monthly"] = np.nan
 
     person["working_age_18_64"] = person["age"].between(18, 64, inclusive="both")
+
     person["activity_group_working_age"] = (
         person["activity_group"]
         .where(person["working_age_18_64"], pd.NA)
@@ -513,7 +397,7 @@ def load_person_clean(tr_path: Path, tp_path: Path, year: int) -> pd.DataFrame |
     person["person_file_available"] = 1.0
     person["year"] = year
 
-    return PersonSchema.validate(person)
+    return PersonSchema.validate(person, lazy=True)
 
 
 # =============================================================================
@@ -1044,6 +928,7 @@ def process_year(
 
     td = load_td_clean(paths["td"])
     th = load_th_clean(paths["th"])
+
     person = load_person_clean(paths["tr"], paths["tp"], year)
 
     check_person_household_linkage(person, th["household_id"], year)
