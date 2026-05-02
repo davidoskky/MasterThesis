@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+
+from src.constants import HOUSEHOLD_REQUIRED_COLUMNS
 
 BASE_PATH = Path(r".").resolve()
 
@@ -12,23 +15,25 @@ INPUT_RULES = BASE_PATH / "policy_db" / "rmi_baseline_rules.parquet"
 INPUT_SCHEDULE = BASE_PATH / "policy_db" / "rmi_baseline_schedule.parquet"
 INPUT_COVERAGE = BASE_PATH / "policy_db" / "rmi_coverage_reference.parquet"
 
-OUTPUT_HH = BASE_PATH / "ecv_rmi_baseline_p20_pre_2017_2019.parquet"
-OUTPUT_CSV = BASE_PATH / "ecv_rmi_baseline_p20_pre_2017_2019.csv"
-OUTPUT_REGION = BASE_PATH / "rmi_baseline_p20_region_summary_2017_2019.parquet"
-OUTPUT_YEAR = BASE_PATH / "rmi_baseline_p20_year_summary_2017_2019.parquet"
-OUTPUT_REGION_DIAG = BASE_PATH / "rmi_baseline_p20_region_diagnostic_2017_2019.parquet"
-
 PRE_YEARS = [2017, 2018, 2019]
 PERCENTILE_FILTER = 0.30
 LABOUR_INCOME_MONTHLY_LIMIT = 600.0
+
+
+RUN_TAG = f"p{int(PERCENTILE_FILTER * 100)}_pre_{PRE_YEARS[0]}_{PRE_YEARS[-1]}"
+
+OUTPUT_HH = BASE_PATH / f"ecv_rmi_baseline_{RUN_TAG}.parquet"
+OUTPUT_CSV = BASE_PATH / f"ecv_rmi_baseline_{RUN_TAG}.csv"
+OUTPUT_REGION = BASE_PATH / f"rmi_baseline_{RUN_TAG}_region_summary.parquet"
+OUTPUT_YEAR = BASE_PATH / f"rmi_baseline_{RUN_TAG}_year_summary.parquet"
+OUTPUT_REGION_DIAG = BASE_PATH / f"rmi_baseline_{RUN_TAG}_region_diagnostic.parquet"
 
 # Fixed non-take-up calibration by group from the policy DB
 HIGH_NTU = 0.70
 MEDIUM_NTU = 0.30
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -148,6 +153,7 @@ def prepare_coverage(coverage: pd.DataFrame) -> pd.DataFrame:
         raise KeyError(f"Missing columns in coverage input: {missing}")
     return coverage[keep].copy()
 
+
 def prepare_households(hh: pd.DataFrame) -> pd.DataFrame:
     out = hh.loc[hh["year"].isin(PRE_YEARS)].copy()
 
@@ -160,48 +166,11 @@ def prepare_households(hh: pd.DataFrame) -> pd.DataFrame:
         raise KeyError("Missing region_code in household input")
     out = out.rename(columns={"region_code": "nuts_code"})
 
-    required_cols = [
-        "resources_proxy_baseline_monthly",
-        "resources_proxy_excl_capital_monthly",
-        "household_size",
-        "n_adults_18plus",
-        "n_adults_23plus",
-        "n_adults_25plus",
-        "weight_hh",
-        "single_adult",
-        "single_parent",
-        "two_adults",
-        "threeplus_adults",
-        "wealth_proxy_strict",
-        "responsible_person_proxy_available",
-        "rp1_age",
-        "rp2_age",
-        "rp1_claimant_activity_eligible",
-        "rp2_claimant_activity_eligible",
-        "any_responsible_person_claimant_eligible",
-        "any_responsible_person_active_search",
-        "labour_income_hh_annual",
-        "labour_income_hh_monthly",
-        "any_positive_labour_income",
-        "any_unemployed_18_64",
-        "all_working_age_nonworking",
-        "n_working_18_64",
-        "n_unemployed_18_64",
-        "hh_social_assistance_income_annual",
-        "any_social_assistance_income_hh",
-        "n_students_18_64",
-        "n_retired_18_64",
-        "n_disabled_18_64",
-        "has_labour_composition",
-        "has_complete_age_composition",
-        "labour_income_observed",
-        "all_unemployed_searching",
-    ]
-    missing = [c for c in required_cols if c not in out.columns]
+    missing = [c for c in HOUSEHOLD_REQUIRED_COLUMNS if c not in out.columns]
     if missing:
         raise KeyError(f"Missing columns in household input: {missing}")
 
-    numeric_cols = required_cols.copy()
+    numeric_cols = HOUSEHOLD_REQUIRED_COLUMNS.copy()
     for c in numeric_cols:
         out[c] = pd.to_numeric(out[c], errors="coerce")
 
@@ -215,6 +184,7 @@ def prepare_households(hh: pd.DataFrame) -> pd.DataFrame:
 
     logger.info("Prepared pre-period baseline household rows: %s", len(out))
     return out
+
 
 def prepare_rules(rules: pd.DataFrame) -> pd.DataFrame:
     rules = rules.loc[rules["year"].isin(PRE_YEARS)].copy()
@@ -253,9 +223,15 @@ def prepare_rules(rules: pd.DataFrame) -> pd.DataFrame:
         raise KeyError(f"Missing columns in baseline rules input: {missing}")
 
     out = rules[keep].copy()
-    out["baseline_age_threshold"] = pd.to_numeric(out["baseline_age_threshold"], errors="coerce")
-    out["baseline_amount_topup_factor"] = pd.to_numeric(out["baseline_amount_topup_factor"], errors="coerce")
+    out["baseline_age_threshold"] = pd.to_numeric(
+        out["baseline_age_threshold"], errors="coerce"
+    )
+    out["baseline_amount_topup_factor"] = pd.to_numeric(
+        out["baseline_amount_topup_factor"], errors="coerce"
+    )
     return out
+
+
 def prepare_schedule(schedule: pd.DataFrame) -> pd.DataFrame:
     schedule = schedule.loc[schedule["year"].isin(PRE_YEARS)].copy()
 
@@ -275,31 +251,29 @@ def prepare_schedule(schedule: pd.DataFrame) -> pd.DataFrame:
 
     out = schedule[keep].copy()
     out["hh_size"] = pd.to_numeric(out["hh_size"], errors="raise").astype("Int64")
-    out = out.rename(columns={
-        "hh_size": "hh_size_rule",
-        "guaranteed_amount": "guaranteed_amount_listed"
-    })
+    out = out.rename(
+        columns={
+            "hh_size": "hh_size_rule",
+            "guaranteed_amount": "guaranteed_amount_listed",
+        }
+    )
     return out
+
 
 def merge_inputs(
     hh: pd.DataFrame,
     rules: pd.DataFrame,
     schedule: pd.DataFrame,
-    coverage: pd.DataFrame
+    coverage: pd.DataFrame,
 ) -> pd.DataFrame:
-    out = hh.merge(
-        rules,
-        on=["nuts_code", "year"],
-        how="left",
-        validate="m:1"
-    )
+    out = hh.merge(rules, on=["nuts_code", "year"], how="left", validate="m:1")
 
     out = out.merge(
         schedule,
         on=["nuts_code", "year", "hh_size_rule"],
         how="left",
         validate="m:1",
-        suffixes=("", "_sched")
+        suffixes=("", "_sched"),
     )
 
     out = out.merge(
@@ -307,7 +281,7 @@ def merge_inputs(
         on=["nuts_code", "year"],
         how="left",
         validate="m:1",
-        suffixes=("", "_cov")
+        suffixes=("", "_cov"),
     )
 
     return out
@@ -324,26 +298,24 @@ def apply_age_rule(df: pd.DataFrame) -> pd.DataFrame:
 
     threshold = pd.to_numeric(out["baseline_age_threshold"], errors="coerce")
 
-    rp1_candidate_ok = (
-        out["rp1_age"].ge(threshold).fillna(False) &
-        out["rp1_claimant_activity_eligible"].eq(1).fillna(False)
-    )
+    rp1_candidate_ok = out["rp1_age"].ge(threshold).fillna(False) & out[
+        "rp1_claimant_activity_eligible"
+    ].eq(1).fillna(False)
 
-    rp2_candidate_ok = (
-        out["rp2_age"].ge(threshold).fillna(False) &
-        out["rp2_claimant_activity_eligible"].eq(1).fillna(False)
-    )
+    rp2_candidate_ok = out["rp2_age"].ge(threshold).fillna(False) & out[
+        "rp2_claimant_activity_eligible"
+    ].eq(1).fillna(False)
 
     out["rmi_age_eligible"] = np.where(
         out["responsible_person_proxy_available"].eq(1),
         (rp1_candidate_ok | rp2_candidate_ok).astype(float),
-        np.nan
+        np.nan,
     )
 
     out["rmi_age_rule_source"] = np.where(
         out["responsible_person_proxy_available"].eq(1),
         "responsible_person_claimant_age_proxy",
-        "not_observed"
+        "not_observed",
     )
 
     return out
@@ -355,64 +327,63 @@ def apply_claimant_proxy_rule(df: pd.DataFrame) -> pd.DataFrame:
     out["rmi_claimant_proxy_eligible"] = np.where(
         out["responsible_person_proxy_available"].eq(1),
         out["any_responsible_person_claimant_eligible"],
-        np.nan
+        np.nan,
     )
 
     out["rmi_claimant_proxy_source"] = np.where(
         out["responsible_person_proxy_available"].eq(1),
         "responsible_person_claimant_proxy",
-        "not_observed"
+        "not_observed",
     )
 
     return out
+
 
 def assign_guaranteed_amount(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     out["rmi_hhsize_above_listed_schedule"] = np.where(
-        out["household_size"].notna() &
-        out["max_hh_size_listed"].notna() &
-        (out["household_size"] > out["max_hh_size_listed"]),
+        out["household_size"].notna()
+        & out["max_hh_size_listed"].notna()
+        & (out["household_size"] > out["max_hh_size_listed"]),
         1.0,
-        0.0
+        0.0,
     )
 
     exact_listed = (
-        out["baseline_main_included"].fillna(False) &
-        out["baseline_has_listed_schedule"].fillna(False) &
-        out["guaranteed_amount_listed"].notna()
+        out["baseline_main_included"].fillna(False)
+        & out["baseline_has_listed_schedule"].fillna(False)
+        & out["guaranteed_amount_listed"].notna()
     )
 
     above_listed_use_cap = (
-        out["baseline_main_included"].fillna(False) &
-        out["baseline_has_listed_schedule"].fillna(False) &
-        out["guaranteed_amount_listed"].isna() &
-        out["rmi_hhsize_above_listed_schedule"].eq(1) &
-        out["max_amount"].notna()
+        out["baseline_main_included"].fillna(False)
+        & out["baseline_has_listed_schedule"].fillna(False)
+        & out["guaranteed_amount_listed"].isna()
+        & out["rmi_hhsize_above_listed_schedule"].eq(1)
+        & out["max_amount"].notna()
     )
 
     base_amount = np.select(
         [exact_listed, above_listed_use_cap],
         [out["guaranteed_amount_listed"], out["max_amount"]],
-        default=np.nan
+        default=np.nan,
     )
 
     out["rmi_guaranteed_amount_monthly"] = np.where(
         pd.notna(base_amount) & out["baseline_amount_topup_factor"].notna(),
         base_amount * out["baseline_amount_topup_factor"],
-        base_amount
+        base_amount,
     )
 
     out["rmi_amount_assignment_type"] = np.select(
         [exact_listed, above_listed_use_cap],
         ["exact_schedule_match", "cap_for_above_listed_hhsize"],
-        default="unassigned"
+        default="unassigned",
     )
 
     out["rmi_amount_rule_available"] = np.where(
-        out["rmi_guaranteed_amount_monthly"].notna(),
-        1.0,
-        0.0
+        out["rmi_guaranteed_amount_monthly"].notna(), 1.0, 0.0
     )
 
     out["rmi_amount_approximate"] = np.select(
@@ -421,7 +392,7 @@ def assign_guaranteed_amount(df: pd.DataFrame) -> pd.DataFrame:
             out["rmi_amount_assignment_type"].eq("cap_for_above_listed_hhsize"),
         ],
         [0.0, 1.0],
-        default=np.nan
+        default=np.nan,
     )
 
     return out
@@ -432,7 +403,11 @@ def add_percentile_filter(df: pd.DataFrame, quantile: float) -> pd.DataFrame:
 
     cutoff_map = (
         out.groupby("year")
-        .apply(lambda g: weighted_quantile(g["pfilter_resources_monthly"], g["weight_hh"], quantile))
+        .apply(
+            lambda g: weighted_quantile(
+                g["pfilter_resources_monthly"], g["weight_hh"], quantile
+            )
+        )
         .to_dict()
     )
 
@@ -440,12 +415,13 @@ def add_percentile_filter(df: pd.DataFrame, quantile: float) -> pd.DataFrame:
 
     out["passes_percentile_filter"] = np.select(
         [
-            out["pfilter_resources_monthly"].isna() | out["percentile_cutoff_monthly"].isna(),
+            out["pfilter_resources_monthly"].isna()
+            | out["percentile_cutoff_monthly"].isna(),
             out["pfilter_resources_monthly"] <= out["percentile_cutoff_monthly"],
             out["pfilter_resources_monthly"] > out["percentile_cutoff_monthly"],
         ],
         [np.nan, 1.0, 0.0],
-        default=np.nan
+        default=np.nan,
     )
 
     out["percentile_rule"] = f"bottom_{int(quantile * 100)}pct"
@@ -456,58 +432,60 @@ def add_multi_nucleus_proxy(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     out["multi_nucleus_proxy"] = np.where(
-        (out["n_adults_18plus"].fillna(0) >= 3) &
-        (
-            (out["n_working_18_64"].fillna(0) >= 2) |
-            (out["n_unemployed_18_64"].fillna(0) >= 2)
+        (out["n_adults_18plus"].fillna(0) >= 3)
+        & (
+            (out["n_working_18_64"].fillna(0) >= 2)
+            | (out["n_unemployed_18_64"].fillna(0) >= 2)
         ),
         1.0,
-        0.0
+        0.0,
     )
 
     return out
+
 
 def apply_additional_institutional_rules(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     out["rmi_wealth_eligible"] = np.select(
         [
-            out["baseline_wealth_test"].isin([
-                "proxy_asset_exclusion_strict",
-                "strict_proxy_exclusion"
-            ]) & out["wealth_proxy_strict"].notna(),
+            out["baseline_wealth_test"].isin(
+                ["proxy_asset_exclusion_strict", "strict_proxy_exclusion"]
+            )
+            & out["wealth_proxy_strict"].notna(),
             out["baseline_wealth_test"].eq("none"),
         ],
         [
             (out["wealth_proxy_strict"] == 0).astype(float),
             1.0,
         ],
-        default=np.nan
+        default=np.nan,
     )
 
     allowed_simple_types = (
-        out["single_adult"].eq(1) |
-        out["single_parent"].eq(1) |
-        out["two_adults"].eq(1)
+        out["single_adult"].eq(1) | out["single_parent"].eq(1) | out["two_adults"].eq(1)
     )
 
-    allowed_restricted_threeplus = (
-        out["threeplus_adults"].eq(1) &
-        out["multi_nucleus_proxy"].eq(0)
-    )
+    allowed_restricted_threeplus = out["threeplus_adults"].eq(1) & out[
+        "multi_nucleus_proxy"
+    ].eq(0)
 
     out["rmi_hhtype_eligible"] = np.select(
         [
             out["baseline_allowed_hh_types"].eq("all_household_types"),
-            out["baseline_allowed_hh_types"].eq("single_adult_single_parent_two_adults_only"),
-            out["baseline_allowed_hh_types"].eq("single_adult_single_parent_two_adults_plus_restricted_threeplus"),
+            out["baseline_allowed_hh_types"].eq(
+                "single_adult_single_parent_two_adults_only"
+            ),
+            out["baseline_allowed_hh_types"].eq(
+                "single_adult_single_parent_two_adults_plus_restricted_threeplus"
+            ),
         ],
         [
             1.0,
             allowed_simple_types.astype(float),
             (allowed_simple_types | allowed_restricted_threeplus).astype(float),
         ],
-        default=np.nan
+        default=np.nan,
     )
 
     out["rmi_threeplus_adults_allowed"] = np.select(
@@ -522,13 +500,14 @@ def apply_additional_institutional_rules(df: pd.DataFrame) -> pd.DataFrame:
             np.where(
                 out["threeplus_adults"].eq(1),
                 (out["multi_nucleus_proxy"] == 0).astype(float),
-                1.0
+                1.0,
             ),
         ],
-        default=np.nan
+        default=np.nan,
     )
 
     return out
+
 
 def apply_labour_rule(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -537,53 +516,55 @@ def apply_labour_rule(df: pd.DataFrame) -> pd.DataFrame:
     labour_income_ok = labour_income.le(LABOUR_INCOME_MONTHLY_LIMIT)
 
     labour_context_ok = (
-        out["any_unemployed_18_64"].eq(1) |
-        out["all_working_age_nonworking"].eq(1) |
-        out["any_responsible_person_active_search"].eq(1) |
-        out["any_social_assistance_income_hh"].eq(1)
+        out["any_unemployed_18_64"].eq(1)
+        | out["all_working_age_nonworking"].eq(1)
+        | out["any_responsible_person_active_search"].eq(1)
+        | out["any_social_assistance_income_hh"].eq(1)
     )
 
     out["rmi_labour_income_eligible"] = np.where(
-        labour_income.notna(),
-        labour_income_ok.astype(float),
-        np.nan
+        labour_income.notna(), labour_income_ok.astype(float), np.nan
     )
 
     out["rmi_labour_context_eligible"] = np.where(
-        out["has_labour_composition"].eq(1) | out["responsible_person_proxy_available"].eq(1),
+        out["has_labour_composition"].eq(1)
+        | out["responsible_person_proxy_available"].eq(1),
         labour_context_ok.astype(float),
-        np.nan
+        np.nan,
     )
 
     strict_labour_ok = np.where(
-        out["rmi_labour_income_eligible"].eq(1) & out["rmi_labour_context_eligible"].eq(1),
+        out["rmi_labour_income_eligible"].eq(1)
+        & out["rmi_labour_context_eligible"].eq(1),
         1.0,
         np.where(
-            out["rmi_labour_income_eligible"].isna() | out["rmi_labour_context_eligible"].isna(),
+            out["rmi_labour_income_eligible"].isna()
+            | out["rmi_labour_context_eligible"].isna(),
             np.nan,
-            0.0
-        )
+            0.0,
+        ),
     )
 
     relaxed_labour_ok = np.where(
         out["rmi_labour_income_eligible"].eq(1),
         1.0,
-        np.where(out["rmi_labour_income_eligible"].isna(), np.nan, 0.0)
+        np.where(out["rmi_labour_income_eligible"].isna(), np.nan, 0.0),
     )
 
     out["rmi_labour_eligible"] = np.where(
-        out["baseline_relax_labour_gate"].eq(True),
-        relaxed_labour_ok,
-        strict_labour_ok
+        out["baseline_relax_labour_gate"].eq(True), relaxed_labour_ok, strict_labour_ok
     )
 
     out["rmi_labour_rule_source"] = np.select(
         [
             out["rmi_labour_income_eligible"].isna(),
-            out["baseline_relax_labour_gate"].eq(True) & out["rmi_labour_income_eligible"].eq(1),
+            out["baseline_relax_labour_gate"].eq(True)
+            & out["rmi_labour_income_eligible"].eq(1),
             out["rmi_labour_income_eligible"].eq(0),
-            out["baseline_relax_labour_gate"].eq(False) & out["rmi_labour_context_eligible"].eq(0),
-            out["baseline_relax_labour_gate"].eq(False) & out["rmi_labour_eligible"].eq(1),
+            out["baseline_relax_labour_gate"].eq(False)
+            & out["rmi_labour_context_eligible"].eq(0),
+            out["baseline_relax_labour_gate"].eq(False)
+            & out["rmi_labour_eligible"].eq(1),
         ],
         [
             "labour_rule_not_observable",
@@ -592,7 +573,7 @@ def apply_labour_rule(df: pd.DataFrame) -> pd.DataFrame:
             "fails_labour_context_rule",
             "labour_income_and_context_rule",
         ],
-        default="other"
+        default="other",
     )
 
     return out
@@ -606,87 +587,64 @@ def apply_region_specific_insertion_rules(df: pd.DataFrame) -> pd.DataFrame:
 
     # Andalusia
     mask = out["nuts_code"].eq("ES61")
-    ok = (
-        out["any_responsible_person_active_search"].eq(1) |
-        out["any_social_assistance_income_hh"].eq(1)
-    )
+    ok = out["any_responsible_person_active_search"].eq(1) | out[
+        "any_social_assistance_income_hh"
+    ].eq(1)
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "andalusia_insertion_proxy",
-        "fails_andalusia_insertion_proxy"
+        ok[mask], "andalusia_insertion_proxy", "fails_andalusia_insertion_proxy"
     )
 
     # Castilla-La Mancha
     mask = out["nuts_code"].eq("ES42")
-    ok = (
-        out["any_responsible_person_active_search"].eq(1) &
-        out["any_responsible_person_claimant_eligible"].eq(1)
-    )
+    ok = out["any_responsible_person_active_search"].eq(1) & out[
+        "any_responsible_person_claimant_eligible"
+    ].eq(1)
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "clm_insertion_proxy",
-        "fails_clm_insertion_proxy"
+        ok[mask], "clm_insertion_proxy", "fails_clm_insertion_proxy"
     )
 
     # Extremadura
     mask = out["nuts_code"].eq("ES43")
-    ok = (
-        out["any_responsible_person_active_search"].eq(1) |
-        out["any_social_assistance_income_hh"].eq(1)
-    )
+    ok = out["any_responsible_person_active_search"].eq(1) | out[
+        "any_social_assistance_income_hh"
+    ].eq(1)
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "extremadura_insertion_proxy",
-        "fails_extremadura_insertion_proxy"
+        ok[mask], "extremadura_insertion_proxy", "fails_extremadura_insertion_proxy"
     )
 
     # Madrid
     mask = out["nuts_code"].eq("ES30")
     ok = (
-        out["any_responsible_person_active_search"].eq(1) |
-        (
-            out["any_unemployed_18_64"].eq(1) &
-            out["all_unemployed_searching"].eq(1)
-        ) |
-        out["any_social_assistance_income_hh"].eq(1)
+        out["any_responsible_person_active_search"].eq(1)
+        | (out["any_unemployed_18_64"].eq(1) & out["all_unemployed_searching"].eq(1))
+        | out["any_social_assistance_income_hh"].eq(1)
     )
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "madrid_insertion_proxy",
-        "fails_madrid_insertion_proxy"
+        ok[mask], "madrid_insertion_proxy", "fails_madrid_insertion_proxy"
     )
 
     # Castilla y León
     mask = out["nuts_code"].eq("ES41")
-    ok = (
-        out["any_responsible_person_active_search"].eq(1) |
-        (
-            out["any_unemployed_18_64"].eq(1) &
-            out["all_unemployed_searching"].eq(1)
-        )
+    ok = out["any_responsible_person_active_search"].eq(1) | (
+        out["any_unemployed_18_64"].eq(1) & out["all_unemployed_searching"].eq(1)
     )
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "cyl_insertion_proxy",
-        "fails_cyl_insertion_proxy"
+        ok[mask], "cyl_insertion_proxy", "fails_cyl_insertion_proxy"
     )
 
     # Valencia
     mask = out["nuts_code"].eq("ES52")
-    ok = (
-        out["any_responsible_person_active_search"].eq(1) |
-        out["any_social_assistance_income_hh"].eq(1)
-    )
+    ok = out["any_responsible_person_active_search"].eq(1) | out[
+        "any_social_assistance_income_hh"
+    ].eq(1)
     out.loc[mask, "rmi_insertion_rule_eligible"] = np.where(ok[mask], 1.0, 0.0)
     out.loc[mask, "rmi_insertion_rule_source"] = np.where(
-        ok[mask],
-        "valencia_insertion_proxy",
-        "fails_valencia_insertion_proxy"
+        ok[mask], "valencia_insertion_proxy", "fails_valencia_insertion_proxy"
     )
 
     return out
@@ -699,31 +657,29 @@ def compute_income_gap(df: pd.DataFrame) -> pd.DataFrame:
     guarantee = pd.to_numeric(out["rmi_guaranteed_amount_monthly"], errors="coerce")
 
     claimant_unit_ok = (
-        out["rmi_age_eligible"].eq(1) &
-        out["rmi_claimant_proxy_eligible"].eq(1) &
-        out["rmi_wealth_eligible"].eq(1) &
-        out["rmi_hhtype_eligible"].eq(1) &
-        out["rmi_threeplus_adults_allowed"].eq(1) &
-        out["rmi_labour_eligible"].eq(1) &
-        out["rmi_insertion_rule_eligible"].eq(1)
+        out["rmi_age_eligible"].eq(1)
+        & out["rmi_claimant_proxy_eligible"].eq(1)
+        & out["rmi_wealth_eligible"].eq(1)
+        & out["rmi_hhtype_eligible"].eq(1)
+        & out["rmi_threeplus_adults_allowed"].eq(1)
+        & out["rmi_labour_eligible"].eq(1)
+        & out["rmi_insertion_rule_eligible"].eq(1)
     )
 
     out["rmi_income_test_observed"] = np.where(
-        claimant_unit_ok & resources.notna() & guarantee.notna(),
-        1.0,
-        0.0
+        claimant_unit_ok & resources.notna() & guarantee.notna(), 1.0, 0.0
     )
 
     out["rmi_income_eligible"] = np.where(
         claimant_unit_ok & resources.notna() & guarantee.notna(),
         (resources < guarantee).astype(float),
-        np.nan
+        np.nan,
     )
 
     out["rmi_income_gap_entitlement_monthly"] = np.where(
         claimant_unit_ok & resources.notna() & guarantee.notna(),
         np.maximum(guarantee - resources, 0),
-        np.nan
+        np.nan,
     )
 
     return out
@@ -733,27 +689,25 @@ def add_active_inclusion_gate(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     base_active_inclusion_ok = (
-        out["rmi_claimant_proxy_eligible"].eq(1) &
-        (
-            out["any_responsible_person_active_search"].eq(1) |
-            (
-                out["any_unemployed_18_64"].eq(1) &
-                out["all_unemployed_searching"].eq(1)
-            ) |
-            out["any_social_assistance_income_hh"].eq(1)
+        out["rmi_claimant_proxy_eligible"].eq(1)
+        & (
+            out["any_responsible_person_active_search"].eq(1)
+            | (
+                out["any_unemployed_18_64"].eq(1)
+                & out["all_unemployed_searching"].eq(1)
+            )
+            | out["any_social_assistance_income_hh"].eq(1)
         )
     ).astype(float)
 
     out["active_inclusion_ok"] = np.where(
         out["baseline_apply_active_inclusion_gate"].eq(True),
         base_active_inclusion_ok,
-        1.0
+        1.0,
     )
 
     out["active_inclusion_gate_applied"] = np.where(
-        out["baseline_apply_active_inclusion_gate"].eq(True),
-        1.0,
-        0.0
+        out["baseline_apply_active_inclusion_gate"].eq(True), 1.0, 0.0
     )
 
     return out
@@ -765,102 +719,78 @@ def finalize_entitlement(df: pd.DataFrame) -> pd.DataFrame:
     active_inclusion_condition = out["active_inclusion_ok"].eq(1)
 
     conditions = (
-        out["baseline_main_included"].fillna(False) &
-        out["rmi_amount_rule_available"].eq(1) &
-        out["rmi_age_eligible"].eq(1) &
-        out["rmi_claimant_proxy_eligible"].eq(1) &
-        out["rmi_wealth_eligible"].eq(1) &
-        out["rmi_hhtype_eligible"].eq(1) &
-        out["rmi_threeplus_adults_allowed"].eq(1) &
-        out["rmi_labour_eligible"].eq(1) &
-        out["rmi_income_eligible"].eq(1) &
-        out["passes_percentile_filter"].eq(1) &
-        out["rmi_insertion_rule_eligible"].eq(1) &
-        active_inclusion_condition
+        out["baseline_main_included"].fillna(False)
+        & out["rmi_amount_rule_available"].eq(1)
+        & out["rmi_age_eligible"].eq(1)
+        & out["rmi_claimant_proxy_eligible"].eq(1)
+        & out["rmi_wealth_eligible"].eq(1)
+        & out["rmi_hhtype_eligible"].eq(1)
+        & out["rmi_threeplus_adults_allowed"].eq(1)
+        & out["rmi_labour_eligible"].eq(1)
+        & out["rmi_income_eligible"].eq(1)
+        & out["passes_percentile_filter"].eq(1)
+        & out["rmi_insertion_rule_eligible"].eq(1)
+        & active_inclusion_condition
     )
 
     out["rmi_sim_eligible"] = np.where(conditions, 1.0, 0.0)
 
     out["rmi_simulated_benefit_monthly"] = np.where(
-        out["rmi_sim_eligible"].eq(1),
-        out["rmi_income_gap_entitlement_monthly"],
-        0.0
+        out["rmi_sim_eligible"].eq(1), out["rmi_income_gap_entitlement_monthly"], 0.0
     )
 
     out["rmi_positive_entitlement"] = np.where(
-        out["rmi_simulated_benefit_monthly"] > 0,
-        1.0,
-        0.0
+        out["rmi_simulated_benefit_monthly"] > 0, 1.0, 0.0
     )
 
     out["rmi_exclusion_reason"] = np.select(
         [
             ~out["baseline_main_included"].fillna(False),
             out["rmi_amount_rule_available"].eq(0),
-
             out["rmi_age_eligible"].isna(),
             out["rmi_age_eligible"].eq(0),
-
             out["rmi_claimant_proxy_eligible"].isna(),
             out["rmi_claimant_proxy_eligible"].eq(0),
-
             out["rmi_wealth_eligible"].isna(),
             out["rmi_wealth_eligible"].eq(0),
-
             out["rmi_hhtype_eligible"].isna(),
             out["rmi_hhtype_eligible"].eq(0),
-
             out["rmi_threeplus_adults_allowed"].isna(),
             out["rmi_threeplus_adults_allowed"].eq(0),
-
             out["rmi_labour_eligible"].isna(),
             out["rmi_labour_rule_source"].eq("fails_labour_income_rule"),
             out["rmi_labour_rule_source"].eq("fails_labour_context_rule"),
-
             out["rmi_income_eligible"].isna(),
             out["rmi_income_eligible"].eq(0),
-
             out["passes_percentile_filter"].isna(),
             out["passes_percentile_filter"].eq(0),
-
             out["active_inclusion_ok"].eq(0),
-
             out["rmi_sim_eligible"].eq(1),
         ],
         [
             "region_excluded_from_main_baseline",
             "amount_rule_unavailable",
-
             "age_rule_not_observable",
             "fails_claimant_age_rule",
-
             "claimant_proxy_not_observable",
             "fails_claimant_proxy_rule",
-
             "wealth_rule_not_observable",
             "fails_strict_wealth_rule",
-
             "hh_type_rule_not_observable",
             "fails_household_type_rule",
-
             "threeplus_rule_not_observable",
             "fails_threeplus_adults_rule",
-
             "labour_rule_not_observable",
             "fails_labour_income_rule",
             "fails_labour_context_rule",
-
             "missing_income_or_amount",
             "income_at_or_above_threshold",
-
             "percentile_filter_missing",
             "fails_percentile_filter",
-
             "fails_active_inclusion_proxy",
-
             "eligible",
         ],
-        default="other"
+        default="other",
     )
 
     return out
@@ -885,7 +815,7 @@ def apply_fixed_non_takeup_calibration(df: pd.DataFrame) -> pd.DataFrame:
             HIGH_NTU,
             MEDIUM_NTU,
         ],
-        default=0.0
+        default=0.0,
     )
 
     out["fixed_take_up_rate"] = 1.0 - out["fixed_non_take_up_rate"]
@@ -893,18 +823,19 @@ def apply_fixed_non_takeup_calibration(df: pd.DataFrame) -> pd.DataFrame:
     out["rmi_effective_recipient_weight"] = np.where(
         out["rmi_positive_entitlement"].eq(1),
         out["weight_hh"] * out["fixed_take_up_rate"],
-        0.0
+        0.0,
     )
 
     out["rmi_positive_entitlement_calibrated"] = np.where(
-        out["rmi_positive_entitlement"].eq(1),
-        1.0,
-        0.0
+        out["rmi_positive_entitlement"].eq(1), 1.0, 0.0
     )
 
-    out["non_takeup_calibration_group"] = out["baseline_non_takeup_group"].fillna("none")
+    out["non_takeup_calibration_group"] = out["baseline_non_takeup_group"].fillna(
+        "none"
+    )
 
     return out
+
 
 def make_year_summary(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
@@ -914,18 +845,24 @@ def make_year_summary(df: pd.DataFrame) -> pd.DataFrame:
 
         coverage_year = g[["nuts_code", "titulares"]].drop_duplicates().copy()
         if coverage_year["nuts_code"].duplicated().any():
-            dup_codes = coverage_year.loc[coverage_year["nuts_code"].duplicated(), "nuts_code"].tolist()
-            raise ValueError(f"Duplicate nuts_code values in year coverage summary for {year}: {dup_codes}")
+            dup_codes = coverage_year.loc[
+                coverage_year["nuts_code"].duplicated(), "nuts_code"
+            ].tolist()
+            raise ValueError(
+                f"Duplicate nuts_code values in year coverage summary for {year}: {dup_codes}"
+            )
 
         titulares_year = coverage_year["titulares"].sum()
 
-        rows.append({
-            "year": year,
-            "weighted_total_simulated_households": simulated_total,
-            "observed_titulares": titulares_year,
-            "absolute_gap_sim_minus_titulares": simulated_total - titulares_year,
-            "pct_gap_vs_titulares": safe_pct_gap(simulated_total, titulares_year),
-        })
+        rows.append(
+            {
+                "year": year,
+                "weighted_total_simulated_households": simulated_total,
+                "observed_titulares": titulares_year,
+                "absolute_gap_sim_minus_titulares": simulated_total - titulares_year,
+                "pct_gap_vs_titulares": safe_pct_gap(simulated_total, titulares_year),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values("year")
 
@@ -952,15 +889,20 @@ def make_region_summary(df: pd.DataFrame) -> pd.DataFrame:
             )
         titulares_region_year = float(titulares_values[0])
 
-        rows.append({
-            "nuts_code": nuts_code,
-            "region_name_policy": region,
-            "year": year,
-            "weighted_total_simulated_households": simulated_total,
-            "observed_titulares": titulares_region_year,
-            "absolute_gap_sim_minus_titulares": simulated_total - titulares_region_year,
-            "pct_gap_vs_titulares": safe_pct_gap(simulated_total, titulares_region_year),
-        })
+        rows.append(
+            {
+                "nuts_code": nuts_code,
+                "region_name_policy": region,
+                "year": year,
+                "weighted_total_simulated_households": simulated_total,
+                "observed_titulares": titulares_region_year,
+                "absolute_gap_sim_minus_titulares": simulated_total
+                - titulares_region_year,
+                "pct_gap_vs_titulares": safe_pct_gap(
+                    simulated_total, titulares_region_year
+                ),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values(["year", "region_name_policy"])
 
@@ -973,18 +915,25 @@ def make_year_summary_calibrated(df: pd.DataFrame) -> pd.DataFrame:
 
         coverage_year = g[["nuts_code", "titulares"]].drop_duplicates().copy()
         if coverage_year["nuts_code"].duplicated().any():
-            dup_codes = coverage_year.loc[coverage_year["nuts_code"].duplicated(), "nuts_code"].tolist()
-            raise ValueError(f"Duplicate nuts_code values in year coverage summary for {year}: {dup_codes}")
+            dup_codes = coverage_year.loc[
+                coverage_year["nuts_code"].duplicated(), "nuts_code"
+            ].tolist()
+            raise ValueError(
+                f"Duplicate nuts_code values in year coverage summary for {year}: {dup_codes}"
+            )
 
         titulares_year = float(coverage_year["titulares"].sum())
 
-        rows.append({
-            "year": year,
-            "weighted_total_calibrated_households": calibrated_total,
-            "observed_titulares": titulares_year,
-            "absolute_gap_calibrated_minus_titulares": calibrated_total - titulares_year,
-            "pct_gap_vs_titulares": safe_pct_gap(calibrated_total, titulares_year),
-        })
+        rows.append(
+            {
+                "year": year,
+                "weighted_total_calibrated_households": calibrated_total,
+                "observed_titulares": titulares_year,
+                "absolute_gap_calibrated_minus_titulares": calibrated_total
+                - titulares_year,
+                "pct_gap_vs_titulares": safe_pct_gap(calibrated_total, titulares_year),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values("year")
 
@@ -1018,17 +967,22 @@ def make_region_summary_calibrated(df: pd.DataFrame) -> pd.DataFrame:
                 f"found {non_takeup_values.tolist()}"
             )
 
-        rows.append({
-            "nuts_code": nuts_code,
-            "region_name_policy": region,
-            "year": year,
-            "fixed_non_take_up_rate": float(non_takeup_values[0]),
-            "fixed_take_up_rate": 1.0 - float(non_takeup_values[0]),
-            "weighted_total_calibrated_households": calibrated_total,
-            "observed_titulares": titulares_region_year,
-            "absolute_gap_calibrated_minus_titulares": calibrated_total - titulares_region_year,
-            "pct_gap_vs_titulares": safe_pct_gap(calibrated_total, titulares_region_year),
-        })
+        rows.append(
+            {
+                "nuts_code": nuts_code,
+                "region_name_policy": region,
+                "year": year,
+                "fixed_non_take_up_rate": float(non_takeup_values[0]),
+                "fixed_take_up_rate": 1.0 - float(non_takeup_values[0]),
+                "weighted_total_calibrated_households": calibrated_total,
+                "observed_titulares": titulares_region_year,
+                "absolute_gap_calibrated_minus_titulares": calibrated_total
+                - titulares_region_year,
+                "pct_gap_vs_titulares": safe_pct_gap(
+                    calibrated_total, titulares_region_year
+                ),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values(["year", "region_name_policy"])
 
@@ -1057,20 +1011,30 @@ def make_region_diagnostic_table(df: pd.DataFrame) -> pd.DataFrame:
 
         simulated = g.loc[g["rmi_positive_entitlement"] == 1, "weight_hh"].sum()
 
-        rows.append({
-            "nuts_code": nuts_code,
-            "region_name_policy": region,
-            "year": year,
-            "observed_titulares": titulares,
-            "simulated_households": simulated,
-            "abs_gap": simulated - titulares,
-            "pct_gap": safe_pct_gap(simulated, titulares),
-            "share_simulated": simulated / total_w if total_w > 0 else np.nan,
-            "share_income_eligible": weighted_share(g["rmi_income_eligible"], g["weight_hh"], 1.0),
-            "share_pass_pfilter": weighted_share(g["passes_percentile_filter"], g["weight_hh"], 1.0),
-            "share_labour_eligible": weighted_share(g["rmi_labour_eligible"], g["weight_hh"], 1.0),
-            "share_active_inclusion_ok": weighted_share(g["active_inclusion_ok"], g["weight_hh"], 1.0),
-        })
+        rows.append(
+            {
+                "nuts_code": nuts_code,
+                "region_name_policy": region,
+                "year": year,
+                "observed_titulares": titulares,
+                "simulated_households": simulated,
+                "abs_gap": simulated - titulares,
+                "pct_gap": safe_pct_gap(simulated, titulares),
+                "share_simulated": simulated / total_w if total_w > 0 else np.nan,
+                "share_income_eligible": weighted_share(
+                    g["rmi_income_eligible"], g["weight_hh"], 1.0
+                ),
+                "share_pass_pfilter": weighted_share(
+                    g["passes_percentile_filter"], g["weight_hh"], 1.0
+                ),
+                "share_labour_eligible": weighted_share(
+                    g["rmi_labour_eligible"], g["weight_hh"], 1.0
+                ),
+                "share_active_inclusion_ok": weighted_share(
+                    g["active_inclusion_ok"], g["weight_hh"], 1.0
+                ),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values(["year", "pct_gap"], ascending=[True, False])
 
@@ -1104,24 +1068,26 @@ def make_eligibility_funnel(df: pd.DataFrame) -> pd.DataFrame:
         m_income = m_pfilter & g["rmi_income_eligible"].eq(1)
         m_final = m_income & g["rmi_sim_eligible"].eq(1)
 
-        rows.append({
-            "nuts_code": nuts_code,
-            "region_name_policy": region,
-            "year": year,
-            "total_households": total,
-            "after_region_included": w.loc[m_region].sum(),
-            "after_amount_available": w.loc[m_amount].sum(),
-            "after_age_rule": w.loc[m_age].sum(),
-            "after_claimant_proxy_rule": w.loc[m_claimant].sum(),
-            "after_wealth_rule": w.loc[m_wealth].sum(),
-            "after_hh_type_rule": w.loc[m_hhtype].sum(),
-            "after_threeplus_rule": w.loc[m_threeplus].sum(),
-            "after_labour_rule": w.loc[m_labour].sum(),
-            "after_active_inclusion": w.loc[m_inclusion].sum(),
-            "after_percentile_filter": w.loc[m_pfilter].sum(),
-            "after_income_test": w.loc[m_income].sum(),
-            "final_simulated": w.loc[m_final].sum(),
-        })
+        rows.append(
+            {
+                "nuts_code": nuts_code,
+                "region_name_policy": region,
+                "year": year,
+                "total_households": total,
+                "after_region_included": w.loc[m_region].sum(),
+                "after_amount_available": w.loc[m_amount].sum(),
+                "after_age_rule": w.loc[m_age].sum(),
+                "after_claimant_proxy_rule": w.loc[m_claimant].sum(),
+                "after_wealth_rule": w.loc[m_wealth].sum(),
+                "after_hh_type_rule": w.loc[m_hhtype].sum(),
+                "after_threeplus_rule": w.loc[m_threeplus].sum(),
+                "after_labour_rule": w.loc[m_labour].sum(),
+                "after_active_inclusion": w.loc[m_inclusion].sum(),
+                "after_percentile_filter": w.loc[m_pfilter].sum(),
+                "after_income_test": w.loc[m_income].sum(),
+                "final_simulated": w.loc[m_final].sum(),
+            }
+        )
 
     return pd.DataFrame(rows).sort_values(["year", "region_name_policy"])
 
@@ -1145,12 +1111,14 @@ def debug_income_distribution(sim: pd.DataFrame) -> None:
     for year, g in sim.groupby("year"):
         w = g["weight_hh"]
 
-        rows.append({
-            "year": year,
-            "mean_resources": wmean(g["threshold_resources_monthly"], w),
-            "p20_resources": wpct(g["threshold_resources_monthly"], w, 0.2),
-            "p30_resources": wpct(g["threshold_resources_monthly"], w, 0.3),
-        })
+        rows.append(
+            {
+                "year": year,
+                "mean_resources": wmean(g["threshold_resources_monthly"], w),
+                "p20_resources": wpct(g["threshold_resources_monthly"], w, 0.2),
+                "p30_resources": wpct(g["threshold_resources_monthly"], w, 0.3),
+            }
+        )
 
     print(pd.DataFrame(rows).sort_values("year").to_string(index=False))
 
@@ -1225,25 +1193,48 @@ def make_labour_rule_diagnostic(df: pd.DataFrame) -> pd.DataFrame:
         region = region_names[0]
 
         labour_ok = g.loc[g["rmi_labour_eligible"] == 1, "weight_hh"].sum()
-        source_relaxed = g.loc[g["rmi_labour_rule_source"] == "relaxed_labour_income_only_rule", "weight_hh"].sum()
-        source_full = g.loc[g["rmi_labour_rule_source"] == "labour_income_and_context_rule", "weight_hh"].sum()
-        source_fail_income = g.loc[g["rmi_labour_rule_source"] == "fails_labour_income_rule", "weight_hh"].sum()
-        source_fail_context = g.loc[g["rmi_labour_rule_source"] == "fails_labour_context_rule", "weight_hh"].sum()
-        source_missing = g.loc[g["rmi_labour_rule_source"] == "labour_rule_not_observable", "weight_hh"].sum()
+        source_relaxed = g.loc[
+            g["rmi_labour_rule_source"] == "relaxed_labour_income_only_rule",
+            "weight_hh",
+        ].sum()
+        source_full = g.loc[
+            g["rmi_labour_rule_source"] == "labour_income_and_context_rule", "weight_hh"
+        ].sum()
+        source_fail_income = g.loc[
+            g["rmi_labour_rule_source"] == "fails_labour_income_rule", "weight_hh"
+        ].sum()
+        source_fail_context = g.loc[
+            g["rmi_labour_rule_source"] == "fails_labour_context_rule", "weight_hh"
+        ].sum()
+        source_missing = g.loc[
+            g["rmi_labour_rule_source"] == "labour_rule_not_observable", "weight_hh"
+        ].sum()
 
-        rows.append({
-            "nuts_code": nuts_code,
-            "region_name_policy": region,
-            "year": year,
-            "total_households": total,
-            "labour_eligible": labour_ok,
-            "share_labour_eligible": labour_ok / total if total > 0 else np.nan,
-            "share_relaxed_labour_income_only_rule": source_relaxed / total if total > 0 else np.nan,
-            "share_labour_income_and_context_rule": source_full / total if total > 0 else np.nan,
-            "share_fails_labour_income_rule": source_fail_income / total if total > 0 else np.nan,
-            "share_fails_labour_context_rule": source_fail_context / total if total > 0 else np.nan,
-            "share_labour_rule_not_observable": source_missing / total if total > 0 else np.nan,
-        })
+        rows.append(
+            {
+                "nuts_code": nuts_code,
+                "region_name_policy": region,
+                "year": year,
+                "total_households": total,
+                "labour_eligible": labour_ok,
+                "share_labour_eligible": labour_ok / total if total > 0 else np.nan,
+                "share_relaxed_labour_income_only_rule": source_relaxed / total
+                if total > 0
+                else np.nan,
+                "share_labour_income_and_context_rule": source_full / total
+                if total > 0
+                else np.nan,
+                "share_fails_labour_income_rule": source_fail_income / total
+                if total > 0
+                else np.nan,
+                "share_fails_labour_context_rule": source_fail_context / total
+                if total > 0
+                else np.nan,
+                "share_labour_rule_not_observable": source_missing / total
+                if total > 0
+                else np.nan,
+            }
+        )
 
     return pd.DataFrame(rows).sort_values(["year", "region_name_policy"])
 
@@ -1278,7 +1269,9 @@ def main() -> None:
     region_diag = make_region_diagnostic_table(sim)
 
     print("\n" + "=" * 80)
-    print(f"BASELINE PRE-POLICY RMI SIMULATION WITH {int(PERCENTILE_FILTER * 100)}TH PERCENTILE FILTER")
+    print(
+        f"BASELINE PRE-POLICY RMI SIMULATION WITH {int(PERCENTILE_FILTER * 100)}TH PERCENTILE FILTER"
+    )
     print("=" * 80)
 
     print_compact_table(
